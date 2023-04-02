@@ -10,45 +10,10 @@
 #include <fcntl.h>
 
 #include "elevators.h"
+#include "printer.h"
 
 #define READ_FD 0
 #define WRITE_FD 1
-
-
-// маска старшего установленного бита
-unsigned int highest_bit_mask(unsigned int u){
-    unsigned int r = 0;
-    while (u)
-    {
-        u >>= 1;
-        r <<= 1;
-        r |= 1;
-    }
-    return ((++r) >> 1);
-}
-
-// маска младшего установленного бита
-unsigned int lowest_bit_mask(unsigned int u){
-    if (u == 0)
-        return 0;
-    unsigned int r = 1;
-    while ((u & r) == 0)
-    {
-        r <<= 1;
-    }
-    return r;
-}
-
-// маску в номер этажа
-unsigned int mask_to_floor(unsigned int u){
-    unsigned int floor = 0;
-    while (u > 1)
-    {
-        floor++;
-        u >>= 1;
-    }
-    return floor;
-}
 
 struct termios savetty;
 struct termios tty;
@@ -69,6 +34,39 @@ void set_noncanon(int set){
         // restore the former settings
         tcsetattr (0, TCSAFLUSH, &savetty);
     }
+}
+
+// маска старшего установленного бита
+unsigned int highest_bit_mask(unsigned int u){
+    unsigned int r = 0;
+    while (u)
+{
+        u >>= 1;
+        r <<= 1;
+        r |= 1;
+    }
+    return ((++r) >> 1);
+}
+
+// маска младшего установленного бита
+unsigned int lowest_bit_mask(unsigned int u){
+    if (u == 0)
+        return 0;
+    unsigned int r = 1;
+    while ((u & r) == 0){
+        r <<= 1;
+    }
+    return r;
+}
+
+// маску в номер этажа
+unsigned int mask_to_floor(unsigned int u){
+    unsigned int floor = 0;
+    while (u > 1){
+        floor++;
+        u >>= 1;
+    }
+    return floor;
 }
 
 int main(){
@@ -113,12 +111,11 @@ int main(){
         elevator_run(& fe );
         exit(0);
     }
-    
     // закрываем концы каналов которые используются дочерним процессом
     close(pipes[BU_READ_EL2][WRITE_FD]);
     close(pipes[BU_WRITE_EL2][READ_FD]);
-    ////////// // // // // // // // // // / // // // // // // // // // // // //
-    set_noncanon(1);
+    /////////////////////////////////////////////////////
+
     printf("\033[2J"); // clear
     struct ELEVATOR pe;
     struct ELEVATOR fe;
@@ -126,20 +123,19 @@ int main(){
     unsigned int cb = 0; // ненезначенные ни одному из лифтов вызовы
     unsigned int pr = 0; // вызовы пассажирского лифта
     unsigned int fr = 0; // вызовы грузового
+    set_noncanon(1);
     do{
         int c;
         unsigned int pb = 0;       // пасс кнопки
         unsigned int fb = 0;       // груз кнопки
-        struct E_REQ prq = {0, 0}; // команда(запрос) пасс
+        struct E_REQ prq = {0, 0}; // команда(запрос) пассажирскому
         struct E_REQ frq = {0, 0}; // команда(запрос) грузовому
-        read(0, &c, 1);
-        while (c != EOF){
-            if (c == 27){ // esc
+        if (read(0, &c, 1) != -1 && !exit){
+            if (c == 'z'){ // exit
                 prq.goto_floor = EXIT_FLOOR; // спец значение флаг выхода из процесса
                 frq.goto_floor = EXIT_FLOOR;
                 set_noncanon(0);
                 exit = 1;
-                break;
             }else if (c == '0'){
                 cb |= (1 << 9);
             }else if ((c >= '1') && (c <= '9')){
@@ -208,7 +204,6 @@ int main(){
                     break;
                 }
             }
-            read (0, &c, 1);
         }
         unsigned int pfmask = (1 << pe.floor);
         unsigned int ffmask = (1 << fe.floor);
@@ -298,14 +293,14 @@ int main(){
         printf("\033[0;0H"); // set pos
         print_floors();
         printf("\n");
-        print_elevator(&pe, ' ', "");
+        print_elevator(&pe, "");
         printf("\n");
-        print_elevator(&fe, ' ', "");
+        print_elevator(&fe, "");
         printf("\n");
-        print_buttons(cb | pr | fr, ' ', "");
+        print_buttons(cb | pr | fr, "");
         printf("\n");
         ////////////////////////////////////////////////////////////////////////
-        usleep(100000);
+        sleep(0.1);
     } while (!exit);
     set_noncanon(0);
     /////////////////////////////////////////////////////

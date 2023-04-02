@@ -34,11 +34,6 @@ struct E_REQ{
 #define EXIT_FLOOR 0xFFFFFFFF
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
 
-//printer
-void print_floors(void);
-void print_buttons(unsigned int buttons, char id, const char *name);
-void print_elevator(const struct ELEVATOR *pe, char id, const char *name);
-
 //elevator
 void elevator_init(struct ELEVATOR *pe, int speed);
 int elevator_state_eq(struct ELEVATOR *a, struct ELEVATOR *b);

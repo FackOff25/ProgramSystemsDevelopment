@@ -9,7 +9,7 @@ void print_floors(void){
     printf(" \n");
 }
 
-void print_buttons(unsigned int buttons, char id, const char *name){
+void print_buttons(unsigned int buttons, const char *name){
     printf(" |");
     int i = 0;
     for (; i < FLOORS; i++)
@@ -17,7 +17,7 @@ void print_buttons(unsigned int buttons, char id, const char *name){
     printf(" :%s \n", name);
 }
 
-void print_elevator(const struct ELEVATOR *pe, char id, const char *name){
+void print_elevator(const struct ELEVATOR *pe, const char *name){
     char *idle = "I-";
     char *up = "I-";
     char *down = "I-";
@@ -45,9 +45,7 @@ void print_elevator(const struct ELEVATOR *pe, char id, const char *name){
     printf(" |");
     unsigned int i = 0;
     for (; i < FLOORS; i++)
-        printf((i == pe->floor) ? "%s" : (i == (FLOORS - 1)) ? "-|"
-                                                             : "--",
-               str);
+        printf((i == pe->floor) ? "%s" : (i == (FLOORS - 1)) ? "-|": "--",str);
     printf(" :%s \n", name);
-    print_buttons(pe->buttons, id, name);
+    print_buttons(pe->buttons, name);
 }
