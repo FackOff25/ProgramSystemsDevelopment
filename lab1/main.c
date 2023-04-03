@@ -299,11 +299,11 @@ int main(){
         printf("\033[0;0H"); // set pos
         print_floors();
         printf("\n");
-        print_elevator(&pe, "Passangers");
+        print_buttons(cb | pr | fr, "Buttons");
+        printf("\n");
+        print_elevator(&pe, "Passanger");
         printf("\n");
         print_elevator(&fe, "Freight");
-        printf("\n");
-        print_buttons(cb | pr | fr, "Buttons");
         printf("\n");
         ////////////////////////////////////////////////////////////////////////
     } while (!exit);
