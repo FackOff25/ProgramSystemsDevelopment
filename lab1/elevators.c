@@ -158,7 +158,10 @@ void elevator_run(struct ELEVATOR *pe){
 
             pe->reqdone |= fmask; // fmask
             pe->state = E_WAIT;
-            write(STDOUT_FILENO, pe, sizeof(*pe));
+            if (gotreq || !elevator_state_eq(&old, pe)){
+                write(STDOUT_FILENO, pe, sizeof(*pe));
+                gotreq = 0;
+            }
             usleep(tick);
             break;
         case E_WAIT:
