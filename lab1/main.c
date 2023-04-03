@@ -9,6 +9,8 @@
 #include <string.h>
 #include <fcntl.h>
 
+#include <sys/poll.h>
+
 #include "elevators.h"
 #include "printer.h"
 
@@ -123,6 +125,7 @@ int main(){
     unsigned int cb = 0; // ненезначенные ни одному из лифтов вызовы
     unsigned int pr = 0; // вызовы пассажирского лифта
     unsigned int fr = 0; // вызовы грузового
+    struct pollfd p = {0,1,0}; 
     set_noncanon(1);
     do{
         int c;
@@ -130,78 +133,81 @@ int main(){
         unsigned int fb = 0;       // груз кнопки
         struct E_REQ prq = {0, 0}; // команда(запрос) пассажирскому
         struct E_REQ frq = {0, 0}; // команда(запрос) грузовому
-        if (read(0, &c, 1) != -1 && !exit){
-            if (c == 'z'){ // exit
-                prq.goto_floor = EXIT_FLOOR; // спец значение флаг выхода из процесса
-                frq.goto_floor = EXIT_FLOOR;
-                set_noncanon(0);
-                exit = 1;
-            }else if (c == '0'){
-                cb |= (1 << 9);
-            }else if ((c >= '1') && (c <= '9')){
-                cb |= (1 << (c - '1'));
-            }else {
-                switch (c){
-                case 'q':
-                    pb |= (1 << 0);
-                    break;
-                case 'w':
-                    pb |= (1 << 1);
-                    break;
-                case 'e':
-                    pb |= (1 << 2);
-                    break;
-                case 'r':
-                    pb |= (1 << 3);
-                    break;
-                case 't':
-                    pb |= (1 << 4);
-                    break;
-                case 'y':
-                    pb |= (1 << 5);
-                    break;
-                case 'u':
-                    pb |= (1 << 6);
-                    break;
-                case 'i':
-                    pb |= (1 << 7);
-                    break;
-                case 'o':
-                    pb |= (1 << 8);
-                    break;
-                case 'p':
-                    pb |= (1 << 9);
-                    break;
-                case 'a':
-                    fb |= (1 << 0);
-                    break;
-                case 's':
-                    fb |= (1 << 1);
-                    break;
-                case 'd':
-                    fb |= (1 << 2);
-                    break;
-                case 'f':
-                    fb |= (1 << 3);
-                    break;
-                case 'g':
-                    fb |= (1 << 4);
-                    break;
-                case 'h':
-                    fb |= (1 << 5);
-                    break;
-                case 'j':
-                    fb |= (1 << 6);
-                    break;
-                case 'k':
-                    fb |= (1 << 7);
-                    break;
-                case 'l':
-                    fb |= (1 << 8);
-                    break;
-                case ';':
-                    fb |= (1 << 9);
-                    break;
+        
+        while(poll(&p, POLLIN, 0)){
+            if (read(0, &c, 1) != -1 && !exit){
+                if (c == 27){ // esc exit
+                    prq.goto_floor = EXIT_FLOOR; // спец значение флаг выхода из процесса
+                    frq.goto_floor = EXIT_FLOOR;
+                    set_noncanon(0);
+                    exit = 1;
+                }else if (c == '0'){
+                    cb |= (1 << 9);
+                }else if ((c >= '1') && (c <= '9')){
+                    cb |= (1 << (c - '1'));
+                }else {
+                    switch (c){
+                    case 'q':
+                        pb |= (1 << 0);
+                        break;
+                    case 'w':
+                        pb |= (1 << 1);
+                        break;
+                    case 'e':
+                        pb |= (1 << 2);
+                        break;
+                    case 'r':
+                        pb |= (1 << 3);
+                        break;
+                    case 't':
+                        pb |= (1 << 4);
+                        break;
+                    case 'y':
+                        pb |= (1 << 5);
+                        break;
+                    case 'u':
+                        pb |= (1 << 6);
+                        break;
+                    case 'i':
+                        pb |= (1 << 7);
+                        break;
+                    case 'o':
+                        pb |= (1 << 8);
+                        break;
+                    case 'p':
+                        pb |= (1 << 9);
+                        break;
+                    case 'a':
+                        fb |= (1 << 0);
+                        break;
+                    case 's':
+                        fb |= (1 << 1);
+                        break;
+                    case 'd':
+                        fb |= (1 << 2);
+                        break;
+                    case 'f':
+                        fb |= (1 << 3);
+                        break;
+                    case 'g':
+                        fb |= (1 << 4);
+                        break;
+                    case 'h':
+                        fb |= (1 << 5);
+                        break;
+                    case 'j':
+                        fb |= (1 << 6);
+                        break;
+                    case 'k':
+                        fb |= (1 << 7);
+                        break;
+                    case 'l':
+                        fb |= (1 << 8);
+                        break;
+                    case ';':
+                        fb |= (1 << 9);
+                        break;
+                    }
                 }
             }
         }
@@ -293,14 +299,13 @@ int main(){
         printf("\033[0;0H"); // set pos
         print_floors();
         printf("\n");
-        print_elevator(&pe, "");
+        print_elevator(&pe, "Passangers");
         printf("\n");
-        print_elevator(&fe, "");
+        print_elevator(&fe, "Freight");
         printf("\n");
-        print_buttons(cb | pr | fr, "");
+        print_buttons(cb | pr | fr, "Buttons");
         printf("\n");
         ////////////////////////////////////////////////////////////////////////
-        sleep(0.1);
     } while (!exit);
     set_noncanon(0);
     /////////////////////////////////////////////////////

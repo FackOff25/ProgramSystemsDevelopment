@@ -7,6 +7,7 @@ void print_floors(void){
     for (; i <= FLOORS; i++)
         printf((i == FLOORS) ? "%d|" : "%d_", i % 10);
     printf(" \n");
+    fflush (stdout);
 }
 
 void print_buttons(unsigned int buttons, const char *name){
@@ -15,6 +16,7 @@ void print_buttons(unsigned int buttons, const char *name){
     for (; i < FLOORS; i++)
         printf((buttons & (1 << i)) ? "*|" : " |");
     printf(" :%s \n", name);
+    fflush (stdout);
 }
 
 void print_elevator(const struct ELEVATOR *pe, const char *name){
@@ -48,4 +50,5 @@ void print_elevator(const struct ELEVATOR *pe, const char *name){
         printf((i == pe->floor) ? "%s" : (i == (FLOORS - 1)) ? "-|": "--",str);
     printf(" :%s \n", name);
     print_buttons(pe->buttons, name);
+    fflush (stdout);
 }

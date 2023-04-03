@@ -28,13 +28,11 @@ int elevator_state_eq(struct ELEVATOR *a, struct ELEVATOR *b){
 void elevator_run(struct ELEVATOR *pe){
     struct E_REQ req;
     struct ELEVATOR old;
-    unsigned int tick;
-    unsigned int wait_ticks = 10;
-    // 10, состояние ожидания сделано для возможности нажать на кнопку
+    unsigned int tick = 1000000/pe->speed;
+    // 1, состояние ожидания сделано для возможности нажать на кнопку
     // в кабине когда лифт остановился приехав по вызову с этажа, т.е. в течении этого времени
     // лифт будет стоять на этаже и ожидать нажатия кногпок в кабине
     // если нажатий за это время не будет, лифт пойдет к след вызову с этажа
-    unsigned int move_ticks = 10 / pe->speed;
     int gotreq = 1; // посылаем статус при первом запуске
     while (1){
         //////////////////////////////////////////////////////////////////////////////////////////
@@ -88,20 +86,16 @@ void elevator_run(struct ELEVATOR *pe){
                     pe->state = E_STOP;
                 }else if (pe->buttons > fmask){ // выше
                     pe->state = E_MOVING_UP;
-                    tick = move_ticks;
                 }else{ // ниже
                     pe->state = E_MOVING_DOWN;
-                    tick = move_ticks;
                 }
             }else if (pe->request){
                 if (fmask & pe->request){ // этаж совпал
                     // assert(0 && "нельзя вызывать лифт на тот этаж на котором он находится"); pe->state = E_STOP;
                 }else if (pe->request > fmask){
                     pe->state = E_MOVING_UP;
-                    tick = move_ticks;
                 }else{
                     pe->state = E_MOVING_DOWN;
-                    tick = move_ticks;
                 }
             }
             break;
@@ -152,34 +146,19 @@ void elevator_run(struct ELEVATOR *pe){
             }
 
             pe->reqdone |= fmask; // fmask
-            tick = wait_ticks;
+            usleep(tick);
             pe->state = E_WAIT;
-            /*
-            if ((pb | pc) == 0)
-            {
-            assert(0 && "Стоп без причины ???");
-            } */
             break;
         case E_WAIT:
-            if (!--tick){
                 pe->state = E_IDLE;
-            }
             break;
         }
         if (pe->state == E_MOVING_UP){
-            if (!--tick)
-            {
                 pe->floor++;
                 assert(pe->floor < FLOORS);
-                tick =
-                    move_ticks;
-            }
         }else if (pe->state == E_MOVING_DOWN){
-            if (!--tick){
                 assert(pe->floor > 0);
                 pe->floor--;
-                tick = move_ticks;
-            }
         }
         //////////////////////////////////////////////////////////////////////////////////////////
         // если состояние изменилось, сообщаем новое родителю
@@ -189,6 +168,6 @@ void elevator_run(struct ELEVATOR *pe){
             gotreq = 0;
         }
         //////////////////////////////////////////////////////////////////////////////////////////
-        sleep(0.1); // 1 tick 100ms
+        usleep(tick);
     }
 }
