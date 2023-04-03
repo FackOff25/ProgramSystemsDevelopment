@@ -38,29 +38,6 @@ void set_noncanon(int set){
     }
 }
 
-// маска старшего установленного бита
-unsigned int highest_bit_mask(unsigned int u){
-    unsigned int r = 0;
-    while (u)
-{
-        u >>= 1;
-        r <<= 1;
-        r |= 1;
-    }
-    return ((++r) >> 1);
-}
-
-// маска младшего установленного бита
-unsigned int lowest_bit_mask(unsigned int u){
-    if (u == 0)
-        return 0;
-    unsigned int r = 1;
-    while ((u & r) == 0){
-        r <<= 1;
-    }
-    return r;
-}
-
 // маску в номер этажа
 unsigned int mask_to_floor(unsigned int u){
     unsigned int floor = 0;
@@ -70,6 +47,7 @@ unsigned int mask_to_floor(unsigned int u){
     }
     return floor;
 }
+
 
 int main(){
     int child1, child2;
@@ -135,7 +113,7 @@ int main(){
         struct E_REQ frq = {0, 0}; // команда(запрос) грузовому
         
         while(poll(&p, POLLIN, 0)){
-            if (read(0, &c, 1) != -1 && !exit){
+            if (read(STDIN_FILENO, &c, 1) != -1 && !exit){
                 if (c == 27){ // esc exit
                     prq.goto_floor = EXIT_FLOOR; // спец значение флаг выхода из процесса
                     frq.goto_floor = EXIT_FLOOR;

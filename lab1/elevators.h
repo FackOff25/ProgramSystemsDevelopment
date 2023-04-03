@@ -34,6 +34,9 @@ struct E_REQ{
 #define EXIT_FLOOR 0xFFFFFFFF
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
 
+unsigned int highest_bit_mask(unsigned int u);
+unsigned int lowest_bit_mask(unsigned int u);
+
 //elevator
 void elevator_init(struct ELEVATOR *pe, int speed);
 int elevator_state_eq(struct ELEVATOR *a, struct ELEVATOR *b);

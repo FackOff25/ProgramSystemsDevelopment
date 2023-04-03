@@ -1,9 +1,33 @@
 #include <unistd.h>
 #include <assert.h>
 #include <string.h>
-#include <sys/select.h>
+
+#include <sys/poll.h>
 
 #include "elevators.h"
+
+// маска старшего установленного бита
+unsigned int highest_bit_mask(unsigned int u){
+    unsigned int r = 0;
+    while (u)
+{
+        u >>= 1;
+        r <<= 1;
+        r |= 1;
+    }
+    return ((++r) >> 1);
+}
+
+// маска младшего установленного бита
+unsigned int lowest_bit_mask(unsigned int u){
+    if (u == 0)
+        return 0;
+    unsigned int r = 1;
+    while ((u & r) == 0){
+        r <<= 1;
+    }
+    return r;
+}
 
 void elevator_init(struct ELEVATOR *pe, int speed){
     pe->floor = 0;
@@ -29,11 +53,8 @@ void elevator_run(struct ELEVATOR *pe){
     struct E_REQ req;
     struct ELEVATOR old;
     unsigned int tick = 1000000/pe->speed;
-    // 1, состояние ожидания сделано для возможности нажать на кнопку
-    // в кабине когда лифт остановился приехав по вызову с этажа, т.е. в течении этого времени
-    // лифт будет стоять на этаже и ожидать нажатия кногпок в кабине
-    // если нажатий за это время не будет, лифт пойдет к след вызову с этажа
     int gotreq = 1; // посылаем статус при первом запуске
+    struct pollfd p = {0,1,0}; 
     while (1){
         //////////////////////////////////////////////////////////////////////////////////////////
         unsigned int fmask = (1 << pe->floor); // маска текущего этажа
@@ -41,14 +62,7 @@ void elevator_run(struct ELEVATOR *pe){
         old = *pe; // сохраняем текущее состояние
         //////////////////////////////////////////////////////////////////////////////////////////
         memset(&req, 0, sizeof(req)); // заполняем нулями весь req
-        fd_set rfds;
-        struct timeval tv = {0,
-                             0};
-        FD_ZERO(&rfds);
-        FD_SET(STDIN_FILENO, &rfds);                              // stdin_fileno = 1
-        if (select(STDIN_FILENO + 1, &rfds, NULL, NULL, &tv) > 0){ // ожидает готовые файловые дескрипотры
-            if (FD_ISSET(STDIN_FILENO, &rfds)) // если stdin член дескрипотра rfds
-            {
+        if (poll(&p, POLLIN, 0)){ // ожидает готовые файловые дескрипотры
                 read(STDIN_FILENO, &req, sizeof(req));
                 // обрабатываем запрос
                 gotreq = 1;
@@ -58,13 +72,11 @@ void elevator_run(struct ELEVATOR *pe){
                 if (req.goto_floor){
                     pe->request = req.goto_floor;
                 }
-                if (!pe->request){ // игнорирование нажатия кнопок кабины если уже отрабатывает request ?
+                if (!pe->request){ // игнорирование нажатия кнопок кабины если уже отрабатывает request 
                     if (req.cabin_press){ // got reqs inside cabin
                         if (!pe->buttons){ // не было нажато никаких кнопок
-                            if ((pe->state == E_IDLE) || (pe->state == E_WAIT) /*|| (pe->state == E_STOP)*/){
+                            if ((pe->state == E_IDLE) || (pe->state == E_WAIT)){ // если лифт уже едет
                                 pe->buttons = req.cabin_press;
-                            }else{
-                                // игнорируем(отменяем) нажатые кнопки если лифт уже едет по вызову с этажа
                             }
                         }else{
                             unsigned int lowermask = fmask - 1;
@@ -76,7 +88,6 @@ void elevator_run(struct ELEVATOR *pe){
                         }
                     }
                 }
-            }
         }
         ///////////////////////////////////////////////////////////////////////////////////////////
         switch (pe->state){
