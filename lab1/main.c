@@ -18,9 +18,8 @@
 #define WRITE_FD 1
 
 struct termios savetty;
-struct termios tty;
-
 void set_noncanon(int set){
+    struct termios tty;
     if (set){
         if ( !isatty(0) ) { /*Проверка: стандартный ввод - терминал?*/
             fprintf (stderr, "stdin not terminal\n");
@@ -273,7 +272,7 @@ int main(){
                 fr = fe.request;
             }
         }
-        ////////// // // // // // // // // // / // // // // // // // // // // // // // // / // // // // // // //
+        ////////////////////////////////////////////////////////////////////////
         printf("\033[0;0H"); // set pos
         print_floors();
         printf("\n");

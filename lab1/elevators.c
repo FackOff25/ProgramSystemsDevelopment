@@ -74,18 +74,7 @@ void elevator_run(struct ELEVATOR *pe){
                 }
                 if (!pe->request){ // игнорирование нажатия кнопок кабины если уже отрабатывает request 
                     if (req.cabin_press){ // got reqs inside cabin
-                        if (!pe->buttons){ // не было нажато никаких кнопок
-                            if ((pe->state == E_IDLE) || (pe->state == E_WAIT)){ // если лифт уже едет
-                                pe->buttons = req.cabin_press;
-                            }
-                        }else{
-                            unsigned int lowermask = fmask - 1;
-                            if (pe->buttons > fmask){// можно выше, уже нажатые кнопки выше текущего этажа
-                                pe->buttons |= req.cabin_press & ~lowermask;
-                            }else{ // можно ниже (равно?)
-                                pe->buttons |= req.cabin_press & lowermask;
-                            }
-                        }
+                        pe->buttons |= req.cabin_press;
                     }
                 }
         }
@@ -95,18 +84,18 @@ void elevator_run(struct ELEVATOR *pe){
             if (pe->buttons){ // нажата кнопка внутри лифта, она приоритетней
                 if (fmask & pe->buttons){ // этаж совпал
                     pe->state = E_STOP;
-                }else if (pe->buttons > fmask){ // выше
-                    pe->state = E_MOVING_UP;
-                }else{ // ниже
+                }else if (pe->buttons < fmask){ // выше
                     pe->state = E_MOVING_DOWN;
+                }else{ // ниже
+                    pe->state = E_MOVING_UP;
                 }
             }else if (pe->request){
                 if (fmask & pe->request){ // этаж совпал
                     // assert(0 && "нельзя вызывать лифт на тот этаж на котором он находится"); pe->state = E_STOP;
-                }else if (pe->request > fmask){
-                    pe->state = E_MOVING_UP;
-                }else{
+                }else if (pe->request < fmask){
                     pe->state = E_MOVING_DOWN;
+                }else{
+                    pe->state = E_MOVING_UP;
                 }
             }
             break;
@@ -130,7 +119,6 @@ void elevator_run(struct ELEVATOR *pe){
                     pe->state = E_STOP;
                 }
             }
-
             if (pe->request){
                 if (fmask & pe->request){
                     pe->state = E_STOP;
