@@ -1,7 +1,7 @@
 make: elevators.out
 
 elevators.out: main.o printer.o elevators.o
-	gcc main.o printer.o elevators.o -o elevators.out
+	gcc -no-pie main.o printer.o elevators.o -o elevators.out
 
 main.o: main.c
 	gcc -c main.c

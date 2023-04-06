@@ -15,6 +15,7 @@ struct ELEVATOR{
     ELEVATOR_STATE state;
     unsigned int speed;
     unsigned int reqdone;
+    unsigned int passangers;
 };
 
 enum{

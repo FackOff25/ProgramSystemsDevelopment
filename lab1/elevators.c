@@ -1,7 +1,7 @@
 #include <unistd.h>
 #include <assert.h>
 #include <string.h>
-
+#include <signal.h>
 #include <sys/poll.h>
 
 #include "elevators.h"
@@ -36,6 +36,7 @@ void elevator_init(struct ELEVATOR *pe, int speed){
     pe->state = E_IDLE;
     pe->speed = speed;
     pe->reqdone = 0;
+    pe->passangers = 0;
 }
 
 // изменилось ли состояние лифта
@@ -54,20 +55,41 @@ void elevator_run(struct ELEVATOR *pe){
     struct ELEVATOR old;
     unsigned int tick = 1000000/pe->speed;
     int gotreq = 1; // посылаем статус при первом запуске
-    struct pollfd p = {0,1,0}; 
-    while (1){
+    struct pollfd p = {0,1,0};
+	int exit = 0;
+    while (exit == 0){
         //////////////////////////////////////////////////////////////////////////////////////////
         unsigned int fmask = (1 << pe->floor); // маска текущего этажа
         pe->reqdone = 0;
         old = *pe; // сохраняем текущее состояние
         //////////////////////////////////////////////////////////////////////////////////////////
         memset(&req, 0, sizeof(req)); // заполняем нулями весь req
-        if (poll(&p, POLLIN, 0)){ // ожидает готовые файловые дескрипотры
+	if (pe->state == E_IDLE && pe->buttons == 0 && pe->request == 0){
+		write(STDOUT_FILENO, pe, sizeof(*pe));
+            	gotreq = 0;
+		read(STDIN_FILENO, &req, sizeof(req));
+                // обрабатываем запрос
+                gotreq = 1;
+                if (req.goto_floor == EXIT_FLOOR){
+                    exit = 1;
+			break;
+                }
+                if (req.goto_floor){
+                    pe->request = req.goto_floor;
+                }
+                if (!pe->request){ // игнорирование нажатия кнопок кабины если уже отрабатывает request 
+                    if (req.cabin_press){ // got reqs inside cabin
+                        pe->buttons |= req.cabin_press;
+                    }
+                }	
+	}
+        while (poll(&p, POLLIN, 0)){ // ожидает готовые файловые дескрипотры
                 read(STDIN_FILENO, &req, sizeof(req));
                 // обрабатываем запрос
                 gotreq = 1;
                 if (req.goto_floor == EXIT_FLOOR){
-                    break;
+                     exit = 1;
+			break;
                 }
                 if (req.goto_floor){
                     pe->request = req.goto_floor;
@@ -108,6 +130,8 @@ void elevator_run(struct ELEVATOR *pe){
                 if (fmask & pe->request)
                 {
                     pe->state = E_STOP;
+                }else if (fmask > pe->request){
+                    pe->state = E_MOVING_DOWN;
                 }
             }else{
                 assert(0 && "Едем без вызова ???");
@@ -122,6 +146,8 @@ void elevator_run(struct ELEVATOR *pe){
             if (pe->request){
                 if (fmask & pe->request){
                     pe->state = E_STOP;
+                }else if (fmask < pe->request){
+                    pe->state = E_MOVING_UP;
                 }
             }
 
@@ -150,10 +176,12 @@ void elevator_run(struct ELEVATOR *pe){
                 write(STDOUT_FILENO, pe, sizeof(*pe));
                 gotreq = 0;
             }
-            usleep(tick);
             break;
         case E_WAIT:
                 pe->state = E_IDLE;
+		write(STDOUT_FILENO, pe, sizeof(*pe));
+		gotreq = 0;
+		kill(getppid(), SIGTERM);
             break;
         }
         if (pe->state == E_MOVING_UP){
@@ -168,6 +196,7 @@ void elevator_run(struct ELEVATOR *pe){
         if (gotreq || !elevator_state_eq(&old, pe)){
             write(STDOUT_FILENO, pe, sizeof(*pe));
             gotreq = 0;
+	    kill(getppid(), SIGTERM);
         }
         //////////////////////////////////////////////////////////////////////////////////////////
         usleep(tick);

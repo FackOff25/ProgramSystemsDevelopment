@@ -35,10 +35,10 @@ void print_elevator(const struct ELEVATOR *pe, const char *name){
         str = closed;
         break;
     case E_STOP:
-        str = closed;
+        str = opened;
         break;
     case E_WAIT:
-        str = opened;
+        str = closed;
         break;
     }
     printf("|");
