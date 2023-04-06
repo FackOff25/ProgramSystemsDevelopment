@@ -185,7 +185,7 @@ void elevator_run(struct ELEVATOR *pe){
                 pe->state = E_IDLE;
 		write(STDOUT_FILENO, pe, sizeof(*pe));
 		gotreq = 0;
-		kill(getppid(), SIGTERM);
+		kill(getppid(), SIGREAD);
             break;
         }
         if (pe->state == E_MOVING_UP){
@@ -200,7 +200,7 @@ void elevator_run(struct ELEVATOR *pe){
         if (gotreq || !elevator_state_eq(&old, pe)){
             write(STDOUT_FILENO, pe, sizeof(*pe));
             gotreq = 0;
-	    kill(getppid(), SIGTERM);
+	    kill(getppid(), SIGREAD);
         }
         //////////////////////////////////////////////////////////////////////////////////////////
         usleep(tick);

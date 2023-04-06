@@ -99,7 +99,6 @@ void read_elevators(int sig)
     printf("\n");
     print_elevator(&fe, "Freight");
     printf("\n");
-    signal(SIGTERM, read_elevators);
 }
 
 int main()
@@ -146,7 +145,7 @@ int main()
         elevator_run(&fe);
         exit(0);
     }
-    signal(SIGTERM, read_elevators);
+    signal(SIGREAD, read_elevators);
     // закрываем концы каналов которые используются дочерним процессом
     close(pipes[BU_READ_EL2][WRITE_FD]);
     close(pipes[BU_WRITE_EL2][READ_FD]);

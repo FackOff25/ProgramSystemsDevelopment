@@ -33,6 +33,7 @@ struct E_REQ{
 
 #define FLOORS 10
 #define EXIT_FLOOR 0xFFFFFFFF
+#define SIGREAD 45
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
 
 unsigned int highest_bit_mask(unsigned int u);
