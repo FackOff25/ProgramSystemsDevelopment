@@ -125,8 +125,8 @@ void elevator_run(struct ELEVATOR *pe){
             if (pe->buttons){ // внутри кто-то есть
                 if (fmask & pe->buttons){
                     pe->state = E_STOP;
+                    pe->passangers--;
                 }
-                pe->passangers--;
             }else if (pe->request){
                 if (fmask & pe->request)
                 {
@@ -143,8 +143,8 @@ void elevator_run(struct ELEVATOR *pe){
             if (pe->buttons){ // внутри кто-то есть
                 if (fmask & pe->buttons){
                     pe->state = E_STOP;
+                    pe->passangers--;
                 }
-                pe->passangers--;
             }
             if (pe->request){
                 if (fmask & pe->request){
