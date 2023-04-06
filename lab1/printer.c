@@ -24,26 +24,6 @@ void print_elevator(const struct ELEVATOR *pe, const char *name){
     char *closed = "I-";
     char *opened = "O-";
     char *str = pe->passangers > 9 ? "" : "-";
-    /*
-    switch (pe->state)
-    {
-    case E_IDLE:
-        str = closed;
-        break;
-    case E_MOVING_UP:
-        str = closed;
-        break;
-    case E_MOVING_DOWN:
-        str = closed;
-        break;
-    case E_STOP:
-        str = opened;
-        break;
-    case E_WAIT:
-        str = closed;
-        break;
-    }
-    */
     printf("|");
     unsigned int i = 0;
     for (; i < FLOORS; i++)
