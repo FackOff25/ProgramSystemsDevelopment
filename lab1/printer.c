@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <string.h>
 #include "elevators.h"
 
 void print_floors(void){
@@ -22,7 +23,8 @@ void print_buttons(unsigned int buttons, const char *name){
 void print_elevator(const struct ELEVATOR *pe, const char *name){
     char *closed = "I-";
     char *opened = "O-";
-    char *str = closed;
+    char *str = pe->passangers > 9 ? "" : "-";
+    /*
     switch (pe->state)
     {
     case E_IDLE:
@@ -41,10 +43,11 @@ void print_elevator(const struct ELEVATOR *pe, const char *name){
         str = closed;
         break;
     }
+    */
     printf("|");
     unsigned int i = 0;
     for (; i < FLOORS; i++)
-        printf((i == pe->floor) ? "%s" : (i == (FLOORS - 1)) ? "-|": "--",str);
+        printf((i == pe->floor) ? "%d%s" : (i == (FLOORS - 1)) ? "-|": "--",pe->passangers, str);
     printf(" %s \n", name);
     print_buttons(pe->buttons, "");
     fflush (stdout);

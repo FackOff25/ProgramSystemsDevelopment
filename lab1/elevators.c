@@ -78,7 +78,7 @@ void elevator_run(struct ELEVATOR *pe){
                     pe->request = req.goto_floor;
                 }
                 if (!pe->request){ // игнорирование нажатия кнопок кабины если уже отрабатывает request 
-                    if (req.cabin_press){ // got reqs inside cabin
+                    if (req.cabin_press && pe->passangers != 0){ // got reqs inside cabin
                         pe->buttons |= req.cabin_press;
                     }
                 }	
@@ -126,10 +126,12 @@ void elevator_run(struct ELEVATOR *pe){
                 if (fmask & pe->buttons){
                     pe->state = E_STOP;
                 }
+                pe->passangers--;
             }else if (pe->request){
                 if (fmask & pe->request)
                 {
                     pe->state = E_STOP;
+                    pe->passangers++;
                 }else if (fmask > pe->request){
                     pe->state = E_MOVING_DOWN;
                 }
@@ -142,10 +144,12 @@ void elevator_run(struct ELEVATOR *pe){
                 if (fmask & pe->buttons){
                     pe->state = E_STOP;
                 }
+                pe->passangers--;
             }
             if (pe->request){
                 if (fmask & pe->request){
                     pe->state = E_STOP;
+                    pe->passangers++;
                 }else if (fmask < pe->request){
                     pe->state = E_MOVING_UP;
                 }
