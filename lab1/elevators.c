@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #include <unistd.h>
 #include <assert.h>
 #include <string.h>
@@ -7,10 +8,11 @@
 #include "elevators.h"
 
 // маска старшего установленного бита
-unsigned int highest_bit_mask(unsigned int u){
+unsigned int highest_bit_mask(unsigned int u)
+{
     unsigned int r = 0;
     while (u)
-{
+    {
         u >>= 1;
         r <<= 1;
         r |= 1;
@@ -19,17 +21,20 @@ unsigned int highest_bit_mask(unsigned int u){
 }
 
 // маска младшего установленного бита
-unsigned int lowest_bit_mask(unsigned int u){
+unsigned int lowest_bit_mask(unsigned int u)
+{
     if (u == 0)
         return 0;
     unsigned int r = 1;
-    while ((u & r) == 0){
+    while ((u & r) == 0)
+    {
         r <<= 1;
     }
     return r;
 }
 
-void elevator_init(struct ELEVATOR *pe, int speed){
+void elevator_init(struct ELEVATOR *pe, int speed)
+{
     pe->floor = 0;
     pe->buttons = 0;
     pe->request = 0;
@@ -40,7 +45,8 @@ void elevator_init(struct ELEVATOR *pe, int speed){
 }
 
 // изменилось ли состояние лифта
-int elevator_state_eq(struct ELEVATOR *a, struct ELEVATOR *b){
+int elevator_state_eq(struct ELEVATOR *a, struct ELEVATOR *b)
+{
     return (
         (a->buttons == b->buttons) &&
         (a->floor == b->floor) &&
@@ -50,124 +56,167 @@ int elevator_state_eq(struct ELEVATOR *a, struct ELEVATOR *b){
 }
 
 // функция процесса обработчика лифта
-void elevator_run(struct ELEVATOR *pe){
+void elevator_run(struct ELEVATOR *pe)
+{
     struct E_REQ req;
     struct ELEVATOR old;
-    unsigned int tick = 1000000/pe->speed;
+    unsigned int tick = 1000000 / pe->speed;
     int gotreq = 1; // посылаем статус при первом запуске
-    struct pollfd p = {0,1,0};
-	int exit = 0;
-    while (exit == 0){
+    struct pollfd p = {0, 1, 0};
+    int exit = 0;
+    while (exit == 0)
+    {
         //////////////////////////////////////////////////////////////////////////////////////////
         unsigned int fmask = (1 << pe->floor); // маска текущего этажа
         pe->reqdone = 0;
         old = *pe; // сохраняем текущее состояние
         //////////////////////////////////////////////////////////////////////////////////////////
         memset(&req, 0, sizeof(req)); // заполняем нулями весь req
-	if (pe->state == E_IDLE && pe->buttons == 0 && pe->request == 0){
-		write(STDOUT_FILENO, pe, sizeof(*pe));
-            	gotreq = 0;
-		read(STDIN_FILENO, &req, sizeof(req));
-                // обрабатываем запрос
-                gotreq = 1;
-                if (req.goto_floor == EXIT_FLOOR){
-                    exit = 1;
-			break;
+        if (pe->state == E_IDLE && pe->buttons == 0 && pe->request == 0)
+        {
+            write(STDOUT_FILENO, pe, sizeof(*pe));
+            gotreq = 0;
+            read(STDIN_FILENO, &req, sizeof(req));
+            // обрабатываем запрос
+            gotreq = 1;
+            if (req.goto_floor == EXIT_FLOOR)
+            {
+                exit = 1;
+                break;
+            }
+            if (req.goto_floor)
+            {
+                pe->request = req.goto_floor;
+            }
+            if (!pe->request)
+            { // игнорирование нажатия кнопок кабины если уже отрабатывает request
+                if (req.cabin_press && pe->passangers != 0)
+                { // got reqs inside cabin
+                    pe->buttons |= req.cabin_press;
                 }
-                if (req.goto_floor){
-                    pe->request = req.goto_floor;
+            }
+        }
+        while (poll(&p, POLLIN, 0))
+        { // ожидает готовые файловые дескрипотры
+            read(STDIN_FILENO, &req, sizeof(req));
+            // обрабатываем запрос
+            gotreq = 1;
+            if (req.goto_floor == EXIT_FLOOR)
+            {
+                exit = 1;
+                break;
+            }
+            if (req.goto_floor)
+            {
+                pe->request = req.goto_floor;
+            }
+            if (!pe->request)
+            { // игнорирование нажатия кнопок кабины если уже отрабатывает request
+                if (req.cabin_press)
+                { // got reqs inside cabin
+                    pe->buttons |= req.cabin_press;
                 }
-                if (!pe->request){ // игнорирование нажатия кнопок кабины если уже отрабатывает request 
-                    if (req.cabin_press && pe->passangers != 0){ // got reqs inside cabin
-                        pe->buttons |= req.cabin_press;
-                    }
-                }	
-	}
-        while (poll(&p, POLLIN, 0)){ // ожидает готовые файловые дескрипотры
-                read(STDIN_FILENO, &req, sizeof(req));
-                // обрабатываем запрос
-                gotreq = 1;
-                if (req.goto_floor == EXIT_FLOOR){
-                     exit = 1;
-			break;
-                }
-                if (req.goto_floor){
-                    pe->request = req.goto_floor;
-                }
-                if (!pe->request){ // игнорирование нажатия кнопок кабины если уже отрабатывает request 
-                    if (req.cabin_press){ // got reqs inside cabin
-                        pe->buttons |= req.cabin_press;
-                    }
-                }
+            }
         }
         ///////////////////////////////////////////////////////////////////////////////////////////
-        switch (pe->state){
+        switch (pe->state)
+        {
         case E_IDLE:
-            if (pe->buttons){ // нажата кнопка внутри лифта, она приоритетней
-                if (fmask & pe->buttons){ // этаж совпал
+            if (pe->buttons)
+            { // нажата кнопка внутри лифта, она приоритетней
+                if (fmask & pe->buttons)
+                { // этаж совпал
                     pe->state = E_STOP;
-                }else if (pe->buttons < fmask){ // выше
+                }
+                else if (pe->buttons < fmask)
+                { // выше
                     pe->state = E_MOVING_DOWN;
-                }else{ // ниже
+                }
+                else
+                { // ниже
                     pe->state = E_MOVING_UP;
                 }
-            }else if (pe->request){
-                if (fmask & pe->request){ // этаж совпал
+            }
+            else if (pe->request)
+            {
+                if (fmask & pe->request)
+                { // этаж совпал
                     // assert(0 && "нельзя вызывать лифт на тот этаж на котором он находится"); pe->state = E_STOP;
-                }else if (pe->request < fmask){
+                }
+                else if (pe->request < fmask)
+                {
                     pe->state = E_MOVING_DOWN;
-                }else{
+                }
+                else
+                {
                     pe->state = E_MOVING_UP;
                 }
             }
             break;
         case E_MOVING_UP:
-            if (pe->buttons){ // внутри кто-то есть
-                if (fmask & pe->buttons){
+            if (pe->buttons)
+            { // внутри кто-то есть
+                if (fmask & pe->buttons)
+                {
                     pe->state = E_STOP;
                     pe->passangers--;
                 }
-            }else if (pe->request){
+            }
+            else if (pe->request)
+            {
                 if (fmask & pe->request)
                 {
                     pe->state = E_STOP;
                     pe->passangers++;
-                }else if (fmask > pe->request){
+                }
+                else if (fmask > pe->request)
+                {
                     pe->state = E_MOVING_DOWN;
                 }
-            }else{
+            }
+            else
+            {
                 assert(0 && "Едем без вызова ???");
             }
             break;
         case E_MOVING_DOWN:
-            if (pe->buttons){ // внутри кто-то есть
-                if (fmask & pe->buttons){
+            if (pe->buttons)
+            { // внутри кто-то есть
+                if (fmask & pe->buttons)
+                {
                     pe->state = E_STOP;
                     pe->passangers--;
                 }
             }
-            if (pe->request){
-                if (fmask & pe->request){
+            if (pe->request)
+            {
+                if (fmask & pe->request)
+                {
                     pe->state = E_STOP;
                     pe->passangers++;
-                }else if (fmask < pe->request){
+                }
+                else if (fmask < pe->request)
+                {
                     pe->state = E_MOVING_UP;
                 }
             }
 
-            if ((pe->buttons | pe->request) == 0){
+            if ((pe->buttons | pe->request) == 0)
+            {
                 assert(0 && "Едем без вызова ???");
             }
             break;
         case E_STOP:
-            if (pe->buttons){ // внутри кто-то есть
+            if (pe->buttons)
+            { // внутри кто-то есть
                 if (fmask & pe->buttons)
                 {
                     pe->buttons &= ~fmask;
                 }
             }
 
-            if (pe->request){
+            if (pe->request)
+            {
                 if (fmask & pe->request)
                 {
                     pe->request &= ~fmask; // = 0
@@ -176,31 +225,36 @@ void elevator_run(struct ELEVATOR *pe){
 
             pe->reqdone |= fmask; // fmask
             pe->state = E_WAIT;
-            if (gotreq || !elevator_state_eq(&old, pe)){
+            if (gotreq || !elevator_state_eq(&old, pe))
+            {
                 write(STDOUT_FILENO, pe, sizeof(*pe));
                 gotreq = 0;
             }
             break;
         case E_WAIT:
-                pe->state = E_IDLE;
-		write(STDOUT_FILENO, pe, sizeof(*pe));
-		gotreq = 0;
-		kill(getppid(), SIGREAD);
+            pe->state = E_IDLE;
+            write(STDOUT_FILENO, pe, sizeof(*pe));
+            gotreq = 0;
+            kill(getppid(), SIGREAD);
             break;
         }
-        if (pe->state == E_MOVING_UP){
-                pe->floor++;
-                assert(pe->floor < FLOORS);
-        }else if (pe->state == E_MOVING_DOWN){
-                assert(pe->floor > 0);
-                pe->floor--;
+        if (pe->state == E_MOVING_UP)
+        {
+            pe->floor++;
+            assert(pe->floor < FLOORS);
+        }
+        else if (pe->state == E_MOVING_DOWN)
+        {
+            assert(pe->floor > 0);
+            pe->floor--;
         }
         //////////////////////////////////////////////////////////////////////////////////////////
         // если состояние изменилось, сообщаем новое родителю
-        if (gotreq || !elevator_state_eq(&old, pe)){
+        if (gotreq || !elevator_state_eq(&old, pe))
+        {
             write(STDOUT_FILENO, pe, sizeof(*pe));
             gotreq = 0;
-	    kill(getppid(), SIGREAD);
+            kill(getppid(), SIGREAD);
         }
         //////////////////////////////////////////////////////////////////////////////////////////
         usleep(tick);

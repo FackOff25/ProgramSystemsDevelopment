@@ -101,6 +101,20 @@ void read_elevators(int sig)
     printf("\n");
 }
 
+
+
+void send_to_elevators(struct E_REQ prq, struct E_REQ frq){
+    if (prq.cabin_press || prq.goto_floor)
+        { // делаем запрос/команду лифту если нажаты кнопки кабины или есть вызов с этажа
+            write(pipes[BU_WRITE_EL1][WRITE_FD], &prq, sizeof(prq));
+        }
+        frq.cabin_press = fb;
+        if (frq.cabin_press || frq.goto_floor)
+        { // делаем запрос/команду лифту если нажаты кнопки кабины или есть вызов с этажа
+            write(pipes[BU_WRITE_EL2][WRITE_FD], &frq, sizeof(frq));
+        }
+}
+
 int main()
 {
     int child1, child2;
@@ -175,8 +189,9 @@ int main()
             {                                // esc exit
                 prq.goto_floor = EXIT_FLOOR; // спец значение флаг выхода из процесса
                 frq.goto_floor = EXIT_FLOOR;
+                send_to_elevators(prq, frq);
                 set_noncanon(0);
-                exit = 1;
+                break;
             }
             else if (c == '0')
             {
@@ -327,15 +342,7 @@ int main()
             }
         }
         prq.cabin_press = pb;
-        if (prq.cabin_press || prq.goto_floor)
-        { // делаем запрос/команду лифту если нажаты кнопки кабины или есть вызов с этажа
-            write(pipes[BU_WRITE_EL1][WRITE_FD], &prq, sizeof(prq));
-        }
-        frq.cabin_press = fb;
-        if (frq.cabin_press || frq.goto_floor)
-        { // делаем запрос/команду лифту если нажаты кнопки кабины или есть вызов с этажа
-            write(pipes[BU_WRITE_EL2][WRITE_FD], &frq, sizeof(frq));
-        }
+        send_to_elevators(prq, frq);
     } while (!exit);
     set_noncanon(0);
     /////////////////////////////////////////////////////
