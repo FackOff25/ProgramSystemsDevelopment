@@ -3,7 +3,6 @@
 #include <string.h>
 #include <signal.h>
 #include <sys/poll.h>
-
 #include "elevators.h"
 
 // маска старшего установленного бита
