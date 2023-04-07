@@ -96,8 +96,7 @@ void read_elevators(int sig)
     FD_ZERO(&rfds);
     FD_SET(pipes[BU_READ_EL1][READ_FD], &rfds);
     FD_SET(pipes[BU_READ_EL2][READ_FD], &rfds);
-    if (select(MAX(pipes[BU_READ_EL1][READ_FD], pipes[BU_READ_EL2][READ_FD]) + 1, &rfds,
-               NULL, NULL, &tv) > 0)
+    if (select(MAX(pipes[BU_READ_EL1][READ_FD], pipes[BU_READ_EL2][READ_FD]) + 1, &rfds,NULL, NULL, &tv) > 0)
     {
         if (FD_ISSET(pipes[BU_READ_EL1][READ_FD], &rfds))
         {
@@ -117,70 +116,74 @@ void read_elevators(int sig)
         }
     }
     print_all();
+    struct E_REQ prq = {0, 0}; // команда(запрос) пассажирскому
+    struct E_REQ frq = {0, 0}; // команда(запрос) грузовому
     if ((pe.state == E_IDLE || fe.state == E_IDLE) && cb)
     {
-        struct E_REQ prq = {0, 0}; // команда(запрос) пассажирскому
-        struct E_REQ frq = {0, 0}; // команда(запрос) грузовому
         unsigned int pfmask = (1 << pe.floor);
         unsigned int ffmask = (1 << fe.floor);
         unsigned cbbuf = cb;
         unsigned int h = highest_bit_mask(cbbuf);
-        while (h == pe.request || h == fe.request){
+        while ((h == pe.request || h == fe.request) && h != 0)
+        {
             cbbuf &= ~h;
             h = highest_bit_mask(cbbuf);
         }
-        if ((pe.state == E_IDLE) && (fe.state != E_IDLE))
+        if (h != 0)
         {
-            cb |= pr; // сохраняем старый вызов
-            pr = h;
-            prq.goto_floor = h;
-        }
-        else if ((fe.state == E_IDLE) && (pe.state != E_IDLE))
-        {
-            cb |= fr; // сохраняем старый вызов
-            fr = h;
-            frq.goto_floor = h;
-        }
-        else if ((pe.state == E_IDLE) && (fe.state == E_IDLE))
-        {
-            if (abs(mask_to_floor(h) - pe.floor) <= abs(mask_to_floor(h) - fe.floor))
-            { // пассажирский ближе
-                if (!pe.buttons)
-                {
-                    cb |= pr; // сохраняем старый вызов
-                    pr = h;
-                    prq.goto_floor = h;
-                }
-                h = highest_bit_mask(cb);
-                if (!fe.buttons)
-                {
-                    cb |= fr; // сохраняем старый вызов
-                    fr = h;
-                    frq.goto_floor = h;
-                }
-            }
-            else
+            if ((pe.state == E_IDLE) && (fe.state != E_IDLE))
             {
-                if (!fe.buttons)
-                {
-                    cb |= fr; // сохраняем старый вызов
-                    fr = h;
-                    frq.goto_floor = h;
+                cb |= pr; // сохраняем старый вызов
+                pr = h;
+                prq.goto_floor = h;
+            }
+            else if ((fe.state == E_IDLE) && (pe.state != E_IDLE))
+            {
+                cb |= fr; // сохраняем старый вызов
+                fr = h;
+                frq.goto_floor = h;
+            }
+            else if ((pe.state == E_IDLE) && (fe.state == E_IDLE))
+            {
+                if (abs(mask_to_floor(h) - pe.floor) <= abs(mask_to_floor(h) - fe.floor))
+                { // пассажирский ближе
+                    if (!pe.buttons)
+                    {
+                        cb |= pr; // сохраняем старый вызов
+                        pr = h;
+                        prq.goto_floor = h;
+                    }
+                    h = highest_bit_mask(cb);
+                    if (!fe.buttons)
+                    {
+                        cb |= fr; // сохраняем старый вызов
+                        fr = h;
+                        frq.goto_floor = h;
+                    }
                 }
-                h = highest_bit_mask(cb);
-                if (!pe.buttons)
+                else
                 {
+                    if (!fe.buttons)
+                    {
+                        cb |= fr; // сохраняем старый вызов
+                        fr = h;
+                        frq.goto_floor = h;
+                    }
+                    h = highest_bit_mask(cb);
+                    if (!pe.buttons)
+                    {
 
-                    cb |= pr; // сохраняем старый вызов
-                    pr = h;
-                    prq.goto_floor = h;
+                        cb |= pr; // сохраняем старый вызов
+                        pr = h;
+                        prq.goto_floor = h;
+                    }
                 }
             }
         }
-        prq.cabin_press = pb;
-        frq.cabin_press = fb;
-        send_to_elevators(prq, frq);
     }
+    prq.cabin_press = pb;
+    frq.cabin_press = fb;
+    send_to_elevators(prq, frq);
 }
 
 int main()
@@ -324,43 +327,39 @@ int main()
                 break;
             }
         }
-
         struct E_REQ prq = {0, 0}; // команда(запрос) пассажирскому
         struct E_REQ frq = {0, 0}; // команда(запрос) грузовому
         unsigned int pfmask = (1 << pe.floor);
         unsigned int ffmask = (1 << fe.floor);
         unsigned int cbbuf = cb;
         unsigned int h = highest_bit_mask(cbbuf);
-        while (h == pe.request || h == fe.request){
+        while ((h == pe.request || h == fe.request) && h != 0)
+        {
             cbbuf &= ~h;
             h = highest_bit_mask(cbbuf);
         }
-        if (cb)
+        if (h != 0)
         {
             if ((pe.state == E_IDLE) && (fe.state != E_IDLE))
             {
                 cb |= pr; // сохраняем старый вызов
                 pr = h;
-                cb &= ~h;
                 prq.goto_floor = h;
             }
             else if ((fe.state == E_IDLE) && (pe.state != E_IDLE))
             {
                 cb |= fr; // сохраняем старый вызов
                 fr = h;
-                cb &= ~h;
                 frq.goto_floor = h;
             }
             else if ((pe.state == E_IDLE) && (fe.state == E_IDLE))
             {
-                h = highest_bit_mask(cb);
                 if (abs(mask_to_floor(h) - pe.floor) <= abs(mask_to_floor(h) - fe.floor))
                 { // пассажирский ближе
                     if (!pe.buttons)
                     {
                         cb |= pr; // сохраняем старый вызов
                         pr = h;
-                        cb &= ~h;
                         prq.goto_floor = h;
                     }
                     h = highest_bit_mask(cb);
@@ -368,7 +367,6 @@ int main()
                     {
                         cb |= fr; // сохраняем старый вызов
                         fr = h;
-                        cb &= ~h;
                         frq.goto_floor = h;
                     }
                 }
@@ -378,7 +376,6 @@ int main()
                     {
                         cb |= fr; // сохраняем старый вызов
                         fr = h;
-                        cb &= ~h;
                         frq.goto_floor = h;
                     }
                     h = highest_bit_mask(cb);
@@ -387,7 +384,6 @@ int main()
 
                         cb |= pr; // сохраняем старый вызов
                         pr = h;
-                        cb &= ~h;
                         prq.goto_floor = h;
                     }
                 }
