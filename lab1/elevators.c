@@ -1,6 +1,5 @@
 #include <stdlib.h>
 #include <unistd.h>
-#include <assert.h>
 #include <string.h>
 #include <signal.h>
 #include <sys/poll.h>
@@ -176,7 +175,7 @@ void elevator_run(struct ELEVATOR *pe)
             }
             else
             {
-                assert(0 && "Едем без вызова ???");
+                pe->state = E_STOP;
             }
             break;
         case E_MOVING_DOWN:
@@ -203,7 +202,7 @@ void elevator_run(struct ELEVATOR *pe)
 
             if ((pe->buttons | pe->request) == 0)
             {
-                assert(0 && "Едем без вызова ???");
+                pe->state = E_STOP;
             }
             break;
         case E_STOP:
@@ -241,12 +240,18 @@ void elevator_run(struct ELEVATOR *pe)
         if (pe->state == E_MOVING_UP)
         {
             pe->floor++;
-            assert(pe->floor < FLOORS);
+            if(pe->floor > FLOORS){
+                pe->floor = FLOORS - 1;
+                pe->state = E_STOP;
+            };
         }
         else if (pe->state == E_MOVING_DOWN)
         {
-            assert(pe->floor > 0);
             pe->floor--;
+            if(pe->floor < 0){
+                pe->floor = 0;
+                pe->state = E_STOP;
+            };
         }
         //////////////////////////////////////////////////////////////////////////////////////////
         // если состояние изменилось, сообщаем новое родителю

@@ -63,6 +63,18 @@ unsigned int fr = 0; // вызовы грузового
 unsigned int pb = 0; // пасс кнопки
 unsigned int fb = 0; // груз кнопки
 
+void print_all(){
+    printf("\033[0;0H"); // set pos
+    print_floors();
+    printf("\n");
+    print_buttons(cb | pr | fr, "Buttons");
+    printf("\n");
+    print_elevator(&pe, "Passanger");
+    printf("\n");
+    print_elevator(&fe, "Freight");
+    printf("\n");
+}
+
 void read_elevators(int sig)
 {
     fd_set rfds;
@@ -90,18 +102,8 @@ void read_elevators(int sig)
             fr = fe.request;
         }
     }
-    printf("\033[0;0H"); // set pos
-    print_floors();
-    printf("\n");
-    print_buttons(cb | pr | fr, "Buttons");
-    printf("\n");
-    print_elevator(&pe, "Passanger");
-    printf("\n");
-    print_elevator(&fe, "Freight");
-    printf("\n");
+    print_all();
 }
-
-
 
 void send_to_elevators(struct E_REQ prq, struct E_REQ frq){
     if (prq.cabin_press || prq.goto_floor)
@@ -164,29 +166,20 @@ int main()
     close(pipes[BU_READ_EL2][WRITE_FD]);
     close(pipes[BU_WRITE_EL2][READ_FD]);
     /////////////////////////////////////////////////////
-
     printf("\033[2J"); // clear
     int exit = 0;
     struct pollfd p = {0, 1, 0};
     set_noncanon(1);
-    printf("\033[0;0H"); // set pos
-    print_floors();
-    printf("\n");
-    print_buttons(cb | pr | fr, "Buttons");
-    printf("\n");
-    print_elevator(&pe, "Passanger");
-    printf("\n");
-    print_elevator(&fe, "Freight");
-    printf("\n");
+    print_all();
     do
     {
         int c;
-        struct E_REQ prq = {0, 0}; // команда(запрос) пассажирскому
-        struct E_REQ frq = {0, 0}; // команда(запрос) грузовому
         if (read(STDIN_FILENO, &c, 1) != -1 && !exit)
         {
             if (c == 27)
             {                                // esc exit
+                struct E_REQ prq = {0, 0}; // команда(запрос) пассажирскому
+                struct E_REQ frq = {0, 0}; // команда(запрос) грузовому
                 prq.goto_floor = EXIT_FLOOR; // спец значение флаг выхода из процесса
                 frq.goto_floor = EXIT_FLOOR;
                 send_to_elevators(prq, frq);
@@ -268,7 +261,8 @@ int main()
                 }
             }
         }
-
+        struct E_REQ prq = {0, 0}; // команда(запрос) пассажирскому
+        struct E_REQ frq = {0, 0}; // команда(запрос) грузовому
         unsigned int pfmask = (1 << pe.floor);
         unsigned int ffmask = (1 << fe.floor);
         unsigned int h;
@@ -342,10 +336,11 @@ int main()
             }
         }
         prq.cabin_press = pb;
+        frq.cabin_press = fb;
         send_to_elevators(prq, frq);
     } while (!exit);
+
     set_noncanon(0);
-    /////////////////////////////////////////////////////
     // ждем окончания дочерних процесссов
     waitpid(child1, 0, 0);
     waitpid(child2, 0, 0);
