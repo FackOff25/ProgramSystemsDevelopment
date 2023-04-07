@@ -28,7 +28,7 @@ void print_elevator(const struct ELEVATOR *pe, const char *name){
     unsigned int i = 0;
     for (; i < FLOORS; i++)
         printf((i == pe->floor) ? "%d%s" : (i == (FLOORS - 1)) ? "-|": "--",pe->passangers, str);
-    printf(" %s \n", name);
+    printf(" %s %d\n", name, pe->state);
     print_buttons(pe->buttons, "");
     fflush (stdout);
 }

@@ -53,6 +53,12 @@ int elevator_state_eq(struct ELEVATOR *a, struct ELEVATOR *b)
         (a->reqdone == b->reqdone));
 }
 
+void update_state(struct ELEVATOR *pe)
+{
+    write(STDOUT_FILENO, pe, sizeof(*pe));
+    kill(getppid(), SIGREAD);
+}
+
 // функция процесса обработчика лифта
 void elevator_run(struct ELEVATOR *pe)
 {
@@ -72,8 +78,7 @@ void elevator_run(struct ELEVATOR *pe)
         memset(&req, 0, sizeof(req)); // заполняем нулями весь req
         if (pe->state == E_IDLE && pe->buttons == 0 && pe->request == 0)
         {
-            write(STDOUT_FILENO, pe, sizeof(*pe));
-            gotreq = 0;
+            update_state(pe);
             read(STDIN_FILENO, &req, sizeof(req));
             // обрабатываем запрос
             gotreq = 1;
@@ -139,7 +144,7 @@ void elevator_run(struct ELEVATOR *pe)
             {
                 if (fmask & pe->request)
                 { // этаж совпал
-                    // assert(0 && "нельзя вызывать лифт на тот этаж на котором он находится"); pe->state = E_STOP;
+                  // assert(0 && "нельзя вызывать лифт на тот этаж на котором он находится"); pe->state = E_STOP;
                 }
                 else if (pe->request < fmask)
                 {
@@ -223,23 +228,16 @@ void elevator_run(struct ELEVATOR *pe)
 
             pe->reqdone |= fmask; // fmask
             pe->state = E_WAIT;
-            if (gotreq || !elevator_state_eq(&old, pe))
-            {
-                write(STDOUT_FILENO, pe, sizeof(*pe));
-                gotreq = 0;
-            }
             break;
         case E_WAIT:
             pe->state = E_IDLE;
-            write(STDOUT_FILENO, pe, sizeof(*pe));
-            gotreq = 0;
-            kill(getppid(), SIGREAD);
             break;
         }
         if (pe->state == E_MOVING_UP)
         {
             pe->floor++;
-            if(pe->floor > FLOORS){
+            if (pe->floor > FLOORS)
+            {
                 pe->floor = FLOORS - 1;
                 pe->state = E_STOP;
             };
@@ -247,19 +245,15 @@ void elevator_run(struct ELEVATOR *pe)
         else if (pe->state == E_MOVING_DOWN)
         {
             pe->floor--;
-            if(pe->floor < 0){
+            if (pe->floor < 0)
+            {
                 pe->floor = 0;
                 pe->state = E_STOP;
             };
         }
         //////////////////////////////////////////////////////////////////////////////////////////
         // если состояние изменилось, сообщаем новое родителю
-        if (gotreq || !elevator_state_eq(&old, pe))
-        {
-            write(STDOUT_FILENO, pe, sizeof(*pe));
-            gotreq = 0;
-            kill(getppid(), SIGREAD);
-        }
+        update_state(pe);
         //////////////////////////////////////////////////////////////////////////////////////////
         usleep(tick);
     }

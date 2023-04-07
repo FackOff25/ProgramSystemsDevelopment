@@ -76,6 +76,19 @@ void print_all()
     printf("\n");
 }
 
+void send_to_elevators(struct E_REQ prq, struct E_REQ frq)
+{
+    if (prq.cabin_press || prq.goto_floor)
+    { // делаем запрос/команду лифту если нажаты кнопки кабины или есть вызов с этажа
+        write(pipes[BU_WRITE_EL1][WRITE_FD], &prq, sizeof(prq));
+    }
+    frq.cabin_press = fb;
+    if (frq.cabin_press || frq.goto_floor)
+    { // делаем запрос/команду лифту если нажаты кнопки кабины или есть вызов с этажа
+        write(pipes[BU_WRITE_EL2][WRITE_FD], &frq, sizeof(frq));
+    }
+}
+
 void read_elevators(int sig)
 {
     fd_set rfds;
@@ -104,105 +117,70 @@ void read_elevators(int sig)
         }
     }
     print_all();
-}
-
-void send_to_elevators(struct E_REQ prq, struct E_REQ frq)
-{
-    if (prq.cabin_press || prq.goto_floor)
-    { // делаем запрос/команду лифту если нажаты кнопки кабины или есть вызов с этажа
-        write(pipes[BU_WRITE_EL1][WRITE_FD], &prq, sizeof(prq));
-    }
-    frq.cabin_press = fb;
-    if (frq.cabin_press || frq.goto_floor)
-    { // делаем запрос/команду лифту если нажаты кнопки кабины или есть вызов с этажа
-        write(pipes[BU_WRITE_EL2][WRITE_FD], &frq, sizeof(frq));
-    }
-}
-
-void calculate_and_send()
-{
-    struct E_REQ prq = {0, 0}; // команда(запрос) пассажирскому
-    struct E_REQ frq = {0, 0}; // команда(запрос) грузовому
-    unsigned int pfmask = (1 << pe.floor);
-    unsigned int ffmask = (1 << fe.floor);
-    unsigned int h;
-    printf("starting sendig\n");
-    if (cb)
+    if ((pe.state == E_IDLE || fe.state == E_IDLE) && cb)
     {
-        if ((pfmask & cb) && (pe.state == E_MOVING_DOWN))
-        {             // текущий этаж совпадает
-            cb |= pr; // сохраняем старый вызов
-            pr = pfmask;
-            cb &= ~pfmask;
-            prq.goto_floor = pfmask;
+        struct E_REQ prq = {0, 0}; // команда(запрос) пассажирскому
+        struct E_REQ frq = {0, 0}; // команда(запрос) грузовому
+        unsigned int pfmask = (1 << pe.floor);
+        unsigned int ffmask = (1 << fe.floor);
+        unsigned cbbuf = cb;
+        unsigned int h = highest_bit_mask(cbbuf);
+        while (h == pe.request || h == fe.request){
+            cbbuf &= ~h;
+            h = highest_bit_mask(cbbuf);
         }
-        else if ((ffmask & cb) && (fe.state == E_MOVING_DOWN))
-        {             // текущий этаж совпадает
-            cb |= fr; // сохраняем старый вызов
-            fr = ffmask;
-            cb &= ~ffmask;
-            frq.goto_floor = ffmask;
-        }
-        else
+        if ((pe.state == E_IDLE) && (fe.state != E_IDLE))
         {
-            h = highest_bit_mask(cb);
+            cb |= pr; // сохраняем старый вызов
+            pr = h;
+            prq.goto_floor = h;
+        }
+        else if ((fe.state == E_IDLE) && (pe.state != E_IDLE))
+        {
+            cb |= fr; // сохраняем старый вызов
+            fr = h;
+            frq.goto_floor = h;
+        }
+        else if ((pe.state == E_IDLE) && (fe.state == E_IDLE))
+        {
             if (abs(mask_to_floor(h) - pe.floor) <= abs(mask_to_floor(h) - fe.floor))
             { // пассажирский ближе
                 if (!pe.buttons)
                 {
-                    if ((pe.state == E_IDLE) || ((pe.state == E_MOVING_UP) && (h >= pfmask) && (h > pr)))
-                    {
-                        cb |= pr; // сохраняем старый вызов
-                        pr = h;
-                        cb &= ~h;
-                        prq.goto_floor = h;
-                    }
+                    cb |= pr; // сохраняем старый вызов
+                    pr = h;
+                    prq.goto_floor = h;
                 }
                 h = highest_bit_mask(cb);
                 if (!fe.buttons)
                 {
-                    if ((fe.state == E_IDLE) || ((fe.state == E_MOVING_UP) && (h >= ffmask) && (h > fr)))
-                    {
-                        cb |= fr; // сохраняем старый вызов
-                        fr = h;
-                        cb &= ~h;
-                        frq.goto_floor = h;
-                    }
+                    cb |= fr; // сохраняем старый вызов
+                    fr = h;
+                    frq.goto_floor = h;
                 }
             }
             else
             {
                 if (!fe.buttons)
                 {
-                    if ((fe.state == E_IDLE) || ((fe.state == E_MOVING_UP) && (h >= ffmask) && (h > fr)))
-                    {
-                        cb |= fr; // сохраняем старый вызов
-                        fr = h;
-                        cb &= ~h;
-                        frq.goto_floor = h;
-                    }
+                    cb |= fr; // сохраняем старый вызов
+                    fr = h;
+                    frq.goto_floor = h;
                 }
                 h = highest_bit_mask(cb);
                 if (!pe.buttons)
                 {
-                    if ((pe.state == E_IDLE) || ((pe.state == E_MOVING_UP) && (h >= pfmask) && (h > pr)))
-                    {
-                        cb |= pr; // сохраняем старый вызов
-                        pr = h;
-                        cb &= ~h;
-                        prq.goto_floor = h;
-                    }
+
+                    cb |= pr; // сохраняем старый вызов
+                    pr = h;
+                    prq.goto_floor = h;
                 }
             }
         }
+        prq.cabin_press = pb;
+        frq.cabin_press = fb;
+        send_to_elevators(prq, frq);
     }
-    printf("calculated\n");
-    prq.cabin_press = pb;
-    frq.cabin_press = fb;
-    printf("calculated2\n");
-    printf("passanger: %d, %d\n", prq.cabin_press, prq.goto_floor);
-    printf("freight: %d, %d\n", frq.cabin_press, frq.goto_floor);
-    send_to_elevators(prq, frq);
 }
 
 int main()
@@ -258,179 +236,166 @@ int main()
     int exit = 0;
     struct pollfd p = {0, 1, 0};
     set_noncanon(1);
-    print_all();
     do
     {
         int c;
-        if (read(STDIN_FILENO, &c, 1) != -1 && !exit)
+        read(STDIN_FILENO, &c, 1);
+        if (c == 27)
+        {                                // esc exit
+            struct E_REQ prq = {0, 0};   // команда(запрос) пассажирскому
+            struct E_REQ frq = {0, 0};   // команда(запрос) грузовому
+            prq.goto_floor = EXIT_FLOOR; // спец значение флаг выхода из процесса
+            frq.goto_floor = EXIT_FLOOR;
+            send_to_elevators(prq, frq);
+            set_noncanon(0);
+            break;
+        }
+        else if (c == '0')
         {
-            if (c == 27)
-            {                                // esc exit
-                struct E_REQ prq = {0, 0};   // команда(запрос) пассажирскому
-                struct E_REQ frq = {0, 0};   // команда(запрос) грузовому
-                prq.goto_floor = EXIT_FLOOR; // спец значение флаг выхода из процесса
-                frq.goto_floor = EXIT_FLOOR;
-                send_to_elevators(prq, frq);
-                set_noncanon(0);
+            cb |= (1 << 9);
+        }
+        else if ((c >= '1') && (c <= '9'))
+        {
+            cb |= (1 << (c - '1'));
+        }
+        else
+        {
+            switch (c)
+            {
+            case 'q':
+                pb |= (1 << 0);
+                break;
+            case 'w':
+                pb |= (1 << 1);
+                break;
+            case 'e':
+                pb |= (1 << 2);
+                break;
+            case 'r':
+                pb |= (1 << 3);
+                break;
+            case 't':
+                pb |= (1 << 4);
+                break;
+            case 'y':
+                pb |= (1 << 5);
+                break;
+            case 'u':
+                pb |= (1 << 6);
+                break;
+            case 'i':
+                pb |= (1 << 7);
+                break;
+            case 'o':
+                pb |= (1 << 8);
+                break;
+            case 'p':
+                pb |= (1 << 9);
+                break;
+            case 'a':
+                fb |= (1 << 0);
+                break;
+            case 's':
+                fb |= (1 << 1);
+                break;
+            case 'd':
+                fb |= (1 << 2);
+                break;
+            case 'f':
+                fb |= (1 << 3);
+                break;
+            case 'g':
+                fb |= (1 << 4);
+                break;
+            case 'h':
+                fb |= (1 << 5);
+                break;
+            case 'j':
+                fb |= (1 << 6);
+                break;
+            case 'k':
+                fb |= (1 << 7);
+                break;
+            case 'l':
+                fb |= (1 << 8);
+                break;
+            case ';':
+                fb |= (1 << 9);
                 break;
             }
-            else if (c == '0')
-            {
-                cb |= (1 << 9);
-            }
-            else if ((c >= '1') && (c <= '9'))
-            {
-                cb |= (1 << (c - '1'));
-            }
-            else
-            {
-                switch (c)
-                {
-                case 'q':
-                    pb |= (1 << 0);
-                    break;
-                case 'w':
-                    pb |= (1 << 1);
-                    break;
-                case 'e':
-                    pb |= (1 << 2);
-                    break;
-                case 'r':
-                    pb |= (1 << 3);
-                    break;
-                case 't':
-                    pb |= (1 << 4);
-                    break;
-                case 'y':
-                    pb |= (1 << 5);
-                    break;
-                case 'u':
-                    pb |= (1 << 6);
-                    break;
-                case 'i':
-                    pb |= (1 << 7);
-                    break;
-                case 'o':
-                    pb |= (1 << 8);
-                    break;
-                case 'p':
-                    pb |= (1 << 9);
-                    break;
-                case 'a':
-                    fb |= (1 << 0);
-                    break;
-                case 's':
-                    fb |= (1 << 1);
-                    break;
-                case 'd':
-                    fb |= (1 << 2);
-                    break;
-                case 'f':
-                    fb |= (1 << 3);
-                    break;
-                case 'g':
-                    fb |= (1 << 4);
-                    break;
-                case 'h':
-                    fb |= (1 << 5);
-                    break;
-                case 'j':
-                    fb |= (1 << 6);
-                    break;
-                case 'k':
-                    fb |= (1 << 7);
-                    break;
-                case 'l':
-                    fb |= (1 << 8);
-                    break;
-                case ';':
-                    fb |= (1 << 9);
-                    break;
-                }
-            }
         }
-        calculate_and_send();
-        /*
+
+        struct E_REQ prq = {0, 0}; // команда(запрос) пассажирскому
+        struct E_REQ frq = {0, 0}; // команда(запрос) грузовому
+        unsigned int pfmask = (1 << pe.floor);
+        unsigned int ffmask = (1 << fe.floor);
+        unsigned int cbbuf = cb;
+        unsigned int h = highest_bit_mask(cbbuf);
+        while (h == pe.request || h == fe.request){
+            cbbuf &= ~h;
+            h = highest_bit_mask(cbbuf);
+        }
+        if (cb)
         {
-            struct E_REQ prq = {0, 0}; // команда(запрос) пассажирскому
-            struct E_REQ frq = {0, 0}; // команда(запрос) грузовому
-            unsigned int pfmask = (1 << pe.floor);
-            unsigned int ffmask = (1 << fe.floor);
-            unsigned int h;
-            if (cb)
+            if ((pe.state == E_IDLE) && (fe.state != E_IDLE))
             {
-                if ((pfmask & cb) && (pe.state == E_MOVING_DOWN))
-                {             // текущий этаж совпадает
-                    cb |= pr; // сохраняем старый вызов
-                    pr = pfmask;
-                    cb &= ~pfmask;
-                    prq.goto_floor = pfmask;
-                }
-                else if ((ffmask & cb) && (fe.state == E_MOVING_DOWN))
-                {             // текущий этаж совпадает
-                    cb |= fr; // сохраняем старый вызов
-                    fr = ffmask;
-                    cb &= ~ffmask;
-                    frq.goto_floor = ffmask;
+                cb |= pr; // сохраняем старый вызов
+                pr = h;
+                cb &= ~h;
+                prq.goto_floor = h;
+            }
+            else if ((fe.state == E_IDLE) && (pe.state != E_IDLE))
+            {
+                cb |= fr; // сохраняем старый вызов
+                fr = h;
+                cb &= ~h;
+                frq.goto_floor = h;
+            }
+            else if ((pe.state == E_IDLE) && (fe.state == E_IDLE))
+            {
+                h = highest_bit_mask(cb);
+                if (abs(mask_to_floor(h) - pe.floor) <= abs(mask_to_floor(h) - fe.floor))
+                { // пассажирский ближе
+                    if (!pe.buttons)
+                    {
+                        cb |= pr; // сохраняем старый вызов
+                        pr = h;
+                        cb &= ~h;
+                        prq.goto_floor = h;
+                    }
+                    h = highest_bit_mask(cb);
+                    if (!fe.buttons)
+                    {
+                        cb |= fr; // сохраняем старый вызов
+                        fr = h;
+                        cb &= ~h;
+                        frq.goto_floor = h;
+                    }
                 }
                 else
                 {
-                    h = highest_bit_mask(cb);
-                    if (abs(mask_to_floor(h) - pe.floor) <= abs(mask_to_floor(h) - fe.floor))
-                    { // пассажирский ближе
-                        if (!pe.buttons)
-                        {
-                            if ((pe.state == E_IDLE) || ((pe.state == E_MOVING_UP) && (h >= pfmask) && (h > pr)))
-                            {
-                                cb |= pr; // сохраняем старый вызов
-                                pr = h;
-                                cb &= ~h;
-                                prq.goto_floor = h;
-                            }
-                        }
-                        h = highest_bit_mask(cb);
-                        if (!fe.buttons)
-                        {
-                            if ((fe.state == E_IDLE) || ((fe.state == E_MOVING_UP) && (h >= ffmask) && (h > fr)))
-                            {
-                                cb |= fr; // сохраняем старый вызов
-                                fr = h;
-                                cb &= ~h;
-                                frq.goto_floor = h;
-                            }
-                        }
-                    }
-                    else
+                    if (!fe.buttons)
                     {
-                        if (!fe.buttons)
-                        {
-                            if ((fe.state == E_IDLE) || ((fe.state == E_MOVING_UP) && (h >= ffmask) && (h > fr)))
-                            {
-                                cb |= fr; // сохраняем старый вызов
-                                fr = h;
-                                cb &= ~h;
-                                frq.goto_floor = h;
-                            }
-                        }
-                        h = highest_bit_mask(cb);
-                        if (!pe.buttons)
-                        {
-                            if ((pe.state == E_IDLE) || ((pe.state == E_MOVING_UP) && (h >= pfmask) && (h > pr)))
-                            {
-                                cb |= pr; // сохраняем старый вызов
-                                pr = h;
-                                cb &= ~h;
-                                prq.goto_floor = h;
-                            }
-                        }
+                        cb |= fr; // сохраняем старый вызов
+                        fr = h;
+                        cb &= ~h;
+                        frq.goto_floor = h;
+                    }
+                    h = highest_bit_mask(cb);
+                    if (!pe.buttons)
+                    {
+
+                        cb |= pr; // сохраняем старый вызов
+                        pr = h;
+                        cb &= ~h;
+                        prq.goto_floor = h;
                     }
                 }
             }
-            prq.cabin_press = pb;
-            frq.cabin_press = fb;
-            send_to_elevators(prq, frq);
         }
-        */
+        prq.cabin_press = pb;
+        frq.cabin_press = fb;
+        send_to_elevators(prq, frq);
     } while (!exit);
 
     set_noncanon(0);
