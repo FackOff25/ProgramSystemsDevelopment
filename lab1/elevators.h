@@ -46,7 +46,4 @@ int elevator_state_eq(struct ELEVATOR *a, struct ELEVATOR *b);
 void stop_elevator(int sig);
 void elevator_run(struct ELEVATOR *pe);
 void update_state(struct ELEVATOR *pe);
-int get_floor_from_mask(unsigned int mask){
-    
-}
 #endif

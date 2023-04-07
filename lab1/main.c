@@ -103,14 +103,14 @@ void read_elevators(int sig)
             read(pipes[BU_READ_EL1][READ_FD], &pe,
                  sizeof(pe));
             cb &= ~pe.reqdone;
-            pb &= ~pe.reqdone;
+            pb = pe.buttons;
         }
         if (FD_ISSET(pipes[BU_READ_EL2][READ_FD], &rfds))
         {
             read(pipes[BU_READ_EL2][READ_FD], &fe,
                  sizeof(fe));
             cb &= ~fe.reqdone;
-            fb &= ~fe.reqdone;
+            fb = fe.buttons;
         }
     }
     pr = pe.request;
