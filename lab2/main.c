@@ -74,6 +74,8 @@ int main(int argc, char **argv)
         if(strcmp(filename, "quit") == 0) 
             break;
         FILE* newReader = openFile(filename);
+	if (newReader == NULL)
+		continue;
         FILE* buf = files[1];
         files[1] = files[0];
         rewind(files[1]);

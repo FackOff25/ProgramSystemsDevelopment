@@ -4,38 +4,39 @@
 
 #include "reader.h"
 
-int isUpperCase(char c)
+char makeUpperCase(char c)
 {
-    return (c >= 'A') && (c <= 'Z');
+	if((c >= 'a') && (c <= 'z'))
+		c -= 32;
+    	return c;
 };
 
-int isLowerCase(char c)
+char makeLowerCase(char c)
 {
-    return (c >= 'a') && (c <= 'z');
+    if((c >= 'A') && (c <= 'Z'))
+	c += 32;
+    return c;
 };
 
-char getNext(FILE *file, int (*verifier)(char))
+char getNext(FILE *file, char (*changer)(char))
 {
     char c = 0;
-    while (!verifier(c) && c != EOF)
-    {
-        c = fgetc(file);
-    }
-    return c;
+    c = fgetc(file);
+    return changer(c);
 };
 
 void *runReader(void *arg)
 {
     struct readerAttrs *args = (struct readerAttrs *)arg;
-    int (*verifyer)(char);
+    char (*changer)(char);
     FILE *file;
     if (args->mode == UPPER_CASE)
     {
-        verifyer = isUpperCase;
+        changer = makeUpperCase;
     }
     else if (args->mode == LOWER_CASE)
     {
-        verifyer = isLowerCase;
+        changer = makeLowerCase;
     }
     else
     {
@@ -46,13 +47,13 @@ void *runReader(void *arg)
 
     do
     {
-        char c = getNext(files[args->mode], verifyer);
+        char c = getNext(files[args->mode], changer);
         if (c != EOF)
         {
             do
             {
                 printf("%c\n", c);
-                c = getNext(files[args->mode], verifyer);
+                c = getNext(files[args->mode], changer);
                 sleep(1);
             } while (c != EOF);
         }

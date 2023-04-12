@@ -15,10 +15,10 @@ struct readerAttrs{
     sem_t sem;
 };
 
-int isUpperCase(char c);
-int isLowerCase(char c);
+char makeUpperCase(char c);
+char makeLowerCase(char c);
 
-char getNext(FILE *file, int(*verifier)(char));
+char getNext(FILE *file, char(*changer)(char));
 
 void* runReader(void* arg);
 
