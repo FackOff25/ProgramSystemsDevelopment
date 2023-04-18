@@ -13,15 +13,15 @@ int shouldFireAgain(MarineAnswer answer)
 
 MarineAnswer getAnswerFromStrLatin(char *str)
 {
-    if (strcmp(str, "miss") == 0)
+    if (!strcmp(str, "miss"))
     {
         return MISS;
     }
-    else if (strcmp(str, "hit") == 0)
+    else if (!strcmp(str, "hit"))
     {
         return HIT;
     }
-    else if (strcmp(str, "kill") == 0)
+    else if (!strcmp(str, "kill"))
     {
         return KILL;
     }
