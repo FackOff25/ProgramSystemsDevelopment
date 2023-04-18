@@ -55,7 +55,7 @@ int shootPhase(int connection, char *buf, Message *mes, CODINGS coding)
         answer = getAnswerFromStr(mes->message, coding);
     }
 
-    if (answer == WRONG || res != -1)
+    if (answer == WRONG || res == -1)
     {
         return -1;
     }
@@ -77,14 +77,38 @@ int recievePhase(int connection, char *buf, Message *mes, CODINGS coding)
     MarineAnswer answer = HIT;
     int res = recieveTurn(connection, buf, mes, coding);
     answer = getAnswerFromStr(mes->message, coding);
-    printf("%d", answer);
     while (res != -1 && shouldFireAgain(answer))
     {
         res = recieveTurn(connection, buf, mes, coding);
         answer = getAnswerFromStr(mes->message, coding);
     }
 
-    if (answer == WRONG || res != -1)
+    if (answer == WRONG || res == -1)
+    {
+        return -1;
+    }
+}
+
+int firstRecievePhase(int connection, char *buf, Message *mes, CODINGS *coding)
+{
+    read(connection, buf, BUF_SIZE);
+    parseMessage(buf, BUF_SIZE, mes);
+
+    *coding = mes->coding;
+
+    printf("Enemy's turn is %s\n", mes->message);
+    printf("Your answer: ");
+    scanAndSendConn(connection, buf, mes, *coding);
+
+    int res = 0;
+    MarineAnswer answer = getAnswerFromStr(mes->message, *coding);
+    while (res != -1 && shouldFireAgain(answer))
+    {
+        res = recieveTurn(connection, buf, mes, *coding);
+        answer = getAnswerFromStr(mes->message, *coding);
+    }
+
+    if (answer == WRONG || res == -1)
     {
         return -1;
     }
@@ -122,36 +146,18 @@ int main(int argc, char **argv)
     CODINGS coding;
 
     printf("Server listens port %d\n", port);
-    int connfd = accept(sock, (struct sockaddr_in *)NULL, NULL);
+    int connfd = accept(sock, NULL, NULL);
     printf("Got connection!\n");
 
-    read(connfd, buf, BUF_SIZE);
-    parseMessage(buf, BUF_SIZE, &mes);
-
-    coding = mes.coding;
-
-    printf("Enemy's turn is %s\n", mes.message);
-    printf("Your answer: ");
-    scanf("%s", mes.message);
-    makeMessage(&mes, BUF_SIZE, buf);
-    write(connfd, buf, BUF_SIZE);
-
-    {
-        MarineAnswer answer = HIT;
-        int res = recieveTurn(connfd, buf, &mes, coding);
-        answer = getAnswerFromStr(mes.message, coding);
-        while (res != -1 && shouldFireAgain(answer))
-        {
-            res = recieveTurn(connfd, buf, &mes, coding);
-            answer = getAnswerFromStr(mes.message, coding);
-        }
-    }
+    firstRecievePhase(connfd, buf, &mes, &coding);
 
     while (1)
     {
-        if(shootPhase(connfd, buf, &mes, coding) == -1) break;
+        if (shootPhase(connfd, buf, &mes, coding) == -1)
+            break;
 
-        if(recievePhase(connfd, buf, &mes, coding) == -1) break;
+        if (recievePhase(connfd, buf, &mes, coding) == -1)
+            break;
     }
     close(connfd);
 

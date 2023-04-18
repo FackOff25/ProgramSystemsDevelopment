@@ -25,4 +25,4 @@ start_server: server.out
 	./server.out $(port)
 
 start_client: client.out
-	./client.out $(port) $(serv_addr) $(serv_port)
+	./client.out $(serv_addr) $(serv_port)

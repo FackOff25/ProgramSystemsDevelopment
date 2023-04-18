@@ -13,9 +13,7 @@
 
 #define SRV_HOST "127.0.0.1"
 #define SRV_PORT 8000
-#define CLNT_PORT 8001
 #define BUF_SIZE 64
-#define TXT_ANSW "I am your client\n"
 
 int readConn(int connection, char *buf, Message *mes, CODINGS defCoding)
 {
@@ -40,17 +38,18 @@ int scanAndSendConn(int connection, char *buf, Message *mes, CODINGS defCoding)
     return 0;
 }
 
-int getCodingFromUser(CODINGS* coding){
+int getCodingFromUser(CODINGS *coding)
+{
     int codeBuf = 0;
     printf("Which encoding will you use (1-latin, 2-cyrillic): ");
     scanf("%d", &codeBuf);
-    while(codeBuf != 1 && codeBuf != 2){
+    while (codeBuf != 1 && codeBuf != 2)
+    {
         printf("Wrong input, try again: ");
         scanf("%d", &codeBuf);
     }
     *coding = codeBuf;
 }
-
 
 int shootTurn(int connection, char *buf, Message *mes, CODINGS coding)
 {
@@ -73,7 +72,7 @@ int shootPhase(int connection, char *buf, Message *mes, CODINGS coding)
         answer = getAnswerFromStr(mes->message, coding);
     }
 
-    if (answer == WRONG || res != -1)
+    if (answer == WRONG || res == -1)
     {
         return -1;
     }
@@ -101,21 +100,24 @@ int recievePhase(int connection, char *buf, Message *mes, CODINGS coding)
         answer = getAnswerFromStr(mes->message, coding);
     }
 
-    if (answer == WRONG || res != -1)
+    if (answer == WRONG || res == -1)
     {
         return -1;
     }
 }
 
-
-int main (int argc, char** argv) {
-    int cl_port = CLNT_PORT;
+int main(int argc, char **argv)
+{
     int sv_port = SRV_PORT;
-    char* sv_addr = SRV_HOST;
-    if(argc >= 4){
-        cl_port = atoi(argv[1]);
-        sv_addr = argv[2];
-        sv_port = atoi(argv[3]);
+    char *sv_addr = SRV_HOST;
+    if (argc == 2)
+    {
+        sv_port = atoi(argv[1]);
+    }
+    else if (argc >= 3)
+    {
+        sv_addr = argv[1];
+        sv_port = atoi(argv[2]);
     }
 
     int sock;
@@ -126,18 +128,19 @@ int main (int argc, char** argv) {
     CODINGS coding;
     struct hostent *hp;
 
-    sock = socket (AF_INET, SOCK_STREAM, 0);
+    sock = socket(AF_INET, SOCK_STREAM, 0);
 
     struct sockaddr_in servaddr;
     bzero(&servaddr, sizeof(servaddr));
- 
+
     // assign IP, PORT
     servaddr.sin_family = AF_INET;
     servaddr.sin_addr.s_addr = inet_addr("127.0.0.1");
     servaddr.sin_port = htons(sv_port);
 
     printf("Connecting... ");
-    if(connect(sock, (struct sockaddr*)&servaddr, sizeof(servaddr)) != 0){
+    if (connect(sock, (struct sockaddr *)&servaddr, sizeof(servaddr)) != 0)
+    {
         printf("failed\n");
         exit(0);
     }
@@ -145,10 +148,13 @@ int main (int argc, char** argv) {
 
     getCodingFromUser(&coding);
 
-    while(1){
-        if(shootPhase(sock, buf, &mes, coding) == -1) break;
+    while (1)
+    {
+        if (shootPhase(sock, buf, &mes, coding) == -1)
+            break;
 
-        if(recievePhase(sock, buf, &mes, coding) == -1) break;
+        if (recievePhase(sock, buf, &mes, coding) == -1)
+            break;
     }
-    close (sock);
+    close(sock);
 }
