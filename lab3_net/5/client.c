@@ -9,6 +9,7 @@
 #include <arpa/inet.h>
 
 #include "protocol.h"
+#include "marine.h"
 
 #define SRV_HOST "127.0.0.1"
 #define SRV_PORT 8000
@@ -23,7 +24,7 @@ int readConn(int connection, char *buf, Message *mes, CODINGS defCoding)
     if (mes->coding != defCoding)
     {
         printf("Coding error\n");
-        makeCodingError(buf);
+        makeErrorMessage(buf);
         send(connection, buf, BUF_SIZE, 0);
         return 1;
     }
@@ -49,6 +50,63 @@ int getCodingFromUser(CODINGS* coding){
     }
     *coding = codeBuf;
 }
+
+
+int shootTurn(int connection, char *buf, Message *mes, CODINGS coding)
+{
+    printf("Your turn: ");
+    scanAndSendConn(connection, buf, mes, coding);
+
+    if (readConn(connection, buf, mes, coding) == -1)
+        return -1;
+    printf("Enemy's answer is %s\n", mes->message);
+}
+
+int shootPhase(int connection, char *buf, Message *mes, CODINGS coding)
+{
+    MarineAnswer answer = HIT;
+    int res = shootTurn(connection, buf, mes, coding);
+    answer = getAnswerFromStr(mes->message, coding);
+    while (res != -1 && shouldFireAgain(answer))
+    {
+        res = shootTurn(connection, buf, mes, coding);
+        answer = getAnswerFromStr(mes->message, coding);
+    }
+
+    if (answer == WRONG || res != -1)
+    {
+        return -1;
+    }
+}
+
+int recieveTurn(int connection, char *buf, Message *mes, CODINGS coding)
+{
+    printf("Enemy's turn is ");
+    if (readConn(connection, buf, mes, coding) == -1)
+        return -1;
+    printf("%s\n", mes->message);
+
+    printf("Your answer: ");
+    scanAndSendConn(connection, buf, mes, coding);
+}
+
+int recievePhase(int connection, char *buf, Message *mes, CODINGS coding)
+{
+    MarineAnswer answer = HIT;
+    int res = recieveTurn(connection, buf, mes, coding);
+    answer = getAnswerFromStr(mes->message, coding);
+    while (res != -1 && shouldFireAgain(answer))
+    {
+        res = recieveTurn(connection, buf, mes, coding);
+        answer = getAnswerFromStr(mes->message, coding);
+    }
+
+    if (answer == WRONG || res != -1)
+    {
+        return -1;
+    }
+}
+
 
 int main (int argc, char** argv) {
     int cl_port = CLNT_PORT;
@@ -88,19 +146,9 @@ int main (int argc, char** argv) {
     getCodingFromUser(&coding);
 
     while(1){
-        printf("Your turn: ");
-        scanAndSendConn(sock, buf, &mes, coding);
+        shootPhase(sock, buf, &mes, coding);
 
-        if (readConn(sock, buf, &mes, coding) == 1)
-            break;
-        printf("Enemy's answer is %s\n", buf);
-
-        if (readConn(sock, buf, &mes, coding) == 1)
-            break;
-        printf("Enemy's turn is %s\n", mes.message);
-
-        printf("Your answer: ");
-        scanAndSendConn(sock, buf, &mes, coding);
+        recievePhase(sock, buf, &mes, coding);
     }
     close (sock);
 }

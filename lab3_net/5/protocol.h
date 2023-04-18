@@ -12,9 +12,9 @@ typedef struct{
     char* message;
 } Message;
 
-#define CODING_ERROR "ERR CODING"
+#define ERROR_MESSAGE "ERROR"
 
 int parseMessage(char *message, int len, Message *parsed);
 int makeMessage(Message *message, int len, char *made);
-int makeCodingError(char *made);
+int makeErrorMessage(char *made);
 #endif

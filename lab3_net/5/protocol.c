@@ -17,7 +17,7 @@ int makeMessage(Message *message, int len, char *made)
     return 0;
 };
 
-int makeCodingError(char *made)
+int makeErrorMessage(char *made)
 {
-    memcpy(made, CODING_ERROR, sizeof(char) * 11);
+    memcpy(made, ERROR_MESSAGE, sizeof(char) * 11);
 };

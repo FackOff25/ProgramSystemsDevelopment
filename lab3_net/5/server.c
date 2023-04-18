@@ -6,6 +6,7 @@
 #include <unistd.h>
 
 #include "protocol.h"
+#include "marine.h"
 
 #define PORT 8000
 #define BUF_SIZE 64
@@ -13,14 +14,13 @@
 int readConn(int connection, char *buf, Message *mes, CODINGS defCoding)
 {
     read(connection, buf, BUF_SIZE);
-    printf("%s\n", buf);
     parseMessage(buf, BUF_SIZE, mes);
     if (mes->coding != defCoding)
     {
         printf("Coding error\n");
-        makeCodingError(buf);
+        makeErrorMessage(buf);
         write(connection, buf, BUF_SIZE);
-        return 1;
+        return -1;
     }
     return 0;
 }
@@ -32,6 +32,62 @@ int scanAndSendConn(int connection, char *buf, Message *mes, CODINGS defCoding)
     makeMessage(mes, BUF_SIZE, buf);
     write(connection, buf, BUF_SIZE);
     return 0;
+}
+
+int shootTurn(int connection, char *buf, Message *mes, CODINGS coding)
+{
+    printf("Your turn: ");
+    scanAndSendConn(connection, buf, mes, coding);
+
+    if (readConn(connection, buf, mes, coding) == -1)
+        return -1;
+    printf("Enemy's answer is %s\n", mes->message);
+}
+
+int shootPhase(int connection, char *buf, Message *mes, CODINGS coding)
+{
+    MarineAnswer answer = HIT;
+    int res = shootTurn(connection, buf, mes, coding);
+    answer = getAnswerFromStr(mes->message, coding);
+    while (res != -1 && shouldFireAgain(answer))
+    {
+        res = shootTurn(connection, buf, mes, coding);
+        answer = getAnswerFromStr(mes->message, coding);
+    }
+
+    if (answer == WRONG || res != -1)
+    {
+        return -1;
+    }
+}
+
+int recieveTurn(int connection, char *buf, Message *mes, CODINGS coding)
+{
+    printf("Enemy's turn is ");
+    if (readConn(connection, buf, mes, coding) == -1)
+        return -1;
+    printf("%s\n", mes->message);
+
+    printf("Your answer: ");
+    scanAndSendConn(connection, buf, mes, coding);
+}
+
+int recievePhase(int connection, char *buf, Message *mes, CODINGS coding)
+{
+    MarineAnswer answer = HIT;
+    int res = recieveTurn(connection, buf, mes, coding);
+    answer = getAnswerFromStr(mes->message, coding);
+    printf("%d", answer);
+    while (res != -1 && shouldFireAgain(answer))
+    {
+        res = recieveTurn(connection, buf, mes, coding);
+        answer = getAnswerFromStr(mes->message, coding);
+    }
+
+    if (answer == WRONG || res != -1)
+    {
+        return -1;
+    }
 }
 
 int main(int argc, char **argv)
@@ -80,21 +136,22 @@ int main(int argc, char **argv)
     makeMessage(&mes, BUF_SIZE, buf);
     write(connfd, buf, BUF_SIZE);
 
+    {
+        MarineAnswer answer = HIT;
+        int res = recieveTurn(connfd, buf, &mes, coding);
+        answer = getAnswerFromStr(mes.message, coding);
+        while (res != -1 && shouldFireAgain(answer))
+        {
+            res = recieveTurn(connfd, buf, &mes, coding);
+            answer = getAnswerFromStr(mes.message, coding);
+        }
+    }
+
     while (1)
     {
-        printf("Your turn: ");
-        scanAndSendConn(connfd, buf, &mes, coding);
+        shootPhase(connfd, buf, &mes, coding);
 
-        if (readConn(connfd, buf, &mes, coding) == 1)
-            break;
-        printf("Enemy's answer is %s\n", buf);
-
-        if (readConn(connfd, buf, &mes, coding) == 1)
-            break;
-        printf("Enemy's turn is %s\n", mes.message);
-
-        printf("Your answer: ");
-        scanAndSendConn(connfd, buf, &mes, coding);
+        recievePhase(connfd, buf, &mes, coding);
     }
     close(connfd);
 
