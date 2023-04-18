@@ -27,23 +27,22 @@ int main (int argc, char** argv) {
     int from_len;
     char buf[BUF_SIZE];
     struct hostent *hp;
-    struct sockaddr_in clnt_sin, srv_sin;
 
     sock = socket (AF_INET, SOCK_STREAM, 0);
-    memset ((char *)&clnt_sin, '\0', sizeof(clnt_sin));
-    clnt_sin.sin_family = AF_INET;
-    clnt_sin.sin_addr.s_addr = INADDR_ANY;
-    clnt_sin.sin_port = cl_port;
-    bind (sock, (struct sockaddr *)&clnt_sin, sizeof(clnt_sin));
 
-    memset ((char *)&srv_sin, '\0', sizeof(srv_sin));
-    hp = gethostbyname (sv_addr);
-    srv_sin.sin_family = AF_INET;
-    memcpy ((char *)&srv_sin.sin_addr,hp->h_addr_list[0],hp->h_length);
-    srv_sin.sin_port = sv_port;
+    struct sockaddr_in servaddr;
+    bzero(&servaddr, sizeof(servaddr));
+ 
+    // assign IP, PORT
+    servaddr.sin_family = AF_INET;
+    servaddr.sin_addr.s_addr = inet_addr("127.0.0.1");
+    servaddr.sin_port = htons(sv_port);
 
     printf("Connecting... ");
-    connect (sock, (struct sockaddr*)&srv_sin, sizeof(srv_sin));
+    if(connect (sock, (struct sockaddr*)&servaddr, sizeof(servaddr)) != 0){
+        printf("failed\n");
+        exit(0);
+    }
     printf("connected!\n");
     while(1){
         printf("Your turn: ");
