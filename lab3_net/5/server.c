@@ -149,9 +149,9 @@ int main(int argc, char **argv)
 
     while (1)
     {
-        shootPhase(connfd, buf, &mes, coding);
+        if(shootPhase(connfd, buf, &mes, coding) == -1) break;
 
-        recievePhase(connfd, buf, &mes, coding);
+        if(recievePhase(connfd, buf, &mes, coding) == -1) break;
     }
     close(connfd);
 

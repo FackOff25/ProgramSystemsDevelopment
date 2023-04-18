@@ -146,9 +146,9 @@ int main (int argc, char** argv) {
     getCodingFromUser(&coding);
 
     while(1){
-        shootPhase(sock, buf, &mes, coding);
+        if(shootPhase(sock, buf, &mes, coding) == -1) break;
 
-        recievePhase(sock, buf, &mes, coding);
+        if(recievePhase(sock, buf, &mes, coding) == -1) break;
     }
     close (sock);
 }
