@@ -6,7 +6,7 @@
 #include <unistd.h>
 
 #define PORT 8000
-#define BUF_SIZE 256
+#define BUF_SIZE 64
 
 int main(int argc, char** argv){
     int port = PORT;
@@ -16,8 +16,9 @@ int main(int argc, char** argv){
 
     int sock = socket(AF_INET, SOCK_STREAM, 0);
 
-    struct sockaddr_in serv_addr;
-    memset(&serv_addr, '0', sizeof(serv_addr));
+    struct sockaddr_in serv_addr, from_sin;
+    int from_len;
+    memset(&serv_addr, '\0', sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_addr.s_addr = INADDR_ANY;
     serv_addr.sin_port = port; 
@@ -33,16 +34,18 @@ int main(int argc, char** argv){
     char buf[BUF_SIZE];
     printf("Server listens port %d\n", port);
 
-    int connfd = accept(sock, (struct sockaddr*)NULL, NULL); 
+    int connfd = accept(sock, &from_sin, &from_len);
+    printf("Got connection!\n");
     while(1){
         recv(sock, buf, BUF_SIZE, 0);
         printf("Enemy's turn is %s\n", buf);
         printf("Your answer: ");
         scanf("%s",buf);
-        write(sock, buf, BUF_SIZE);
+        send(sock, buf, BUF_SIZE, 0);
+
         printf("Your turn: ");
         scanf("%s",buf);
-        write(sock, buf, BUF_SIZE);
+        send(sock, buf, BUF_SIZE, 0);
         recv(sock, buf, BUF_SIZE, 0);
         printf("Enemy's answer is %s\n", buf);
     }
