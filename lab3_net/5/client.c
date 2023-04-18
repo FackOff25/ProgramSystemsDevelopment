@@ -29,14 +29,34 @@ int readConn(int connection, char *buf, Message *mes, CODINGS defCoding)
     return 0;
 }
 
-int scanAndSendConn(int connection, char *buf, Message *mes, CODINGS defCoding)
-{
+
+void scanMessage(Message *mes, CODINGS defCoding){
     mes->coding = defCoding;
     scanf("%s", mes->message);
+}
+
+int sendMessage(int connection, char *buf, Message *mes){
     makeMessage(mes, BUF_SIZE, buf);
-    send(connection, buf, BUF_SIZE, 0);
+    write(connection, buf, BUF_SIZE);
     return 0;
 }
+
+int scanAndSendConn(int connection, char *buf, Message *mes, CODINGS defCoding)
+{
+    scanMessage(mes, defCoding);
+    return sendMessage(connection, buf, mes);
+}
+
+int scanAndSendAnswer(int connection, char *buf, Message *mes, CODINGS defCoding)
+{
+    scanMessage(mes, defCoding);
+    while(getAnswerFromStr(mes->message, defCoding) == WRONG){
+        printf("Prohibited answer, try again: ");
+        scanMessage(mes, defCoding);
+    }
+    return sendMessage(connection, buf, mes);
+}
+
 
 int getCodingFromUser(CODINGS *coding)
 {
@@ -86,7 +106,7 @@ int recieveTurn(int connection, char *buf, Message *mes, CODINGS coding)
     printf("%s\n", mes->message);
 
     printf("Your answer: ");
-    scanAndSendConn(connection, buf, mes, coding);
+    scanAndSendAnswer(connection, buf, mes, coding);
 }
 
 int recievePhase(int connection, char *buf, Message *mes, CODINGS coding)
