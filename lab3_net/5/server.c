@@ -16,12 +16,11 @@ int main(int argc, char** argv){
 
     int sock = socket(AF_INET, SOCK_STREAM, 0);
 
-    struct sockaddr_in serv_addr, from_sin;
-    int from_len;
+    struct sockaddr_in serv_addr;
     memset(&serv_addr, '\0', sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
-    serv_addr.sin_addr.s_addr = INADDR_ANY;
-    serv_addr.sin_port = port; 
+    serv_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    serv_addr.sin_port = htons(port); 
 
     if (bind(sock, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) != 0){
         printf("Didn't manage to bind port %d\n", port);
@@ -34,7 +33,7 @@ int main(int argc, char** argv){
     char buf[BUF_SIZE];
     printf("Server listens port %d\n", port);
 
-    int connfd = accept(sock, &from_sin, &from_len);
+    int connfd = accept(sock, (struct sockaddr_in*)NULL, NULL);
     printf("Got connection!\n");
     while(1){
         recv(sock, buf, BUF_SIZE, 0);
