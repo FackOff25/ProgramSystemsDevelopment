@@ -66,7 +66,7 @@ int shootPhase(int connection, char *buf, Message *mes, CODINGS coding)
     MarineAnswer answer = HIT;
     int res = shootTurn(connection, buf, mes, coding);
     answer = getAnswerFromStr(mes->message, coding);
-    while (res != -1 && shouldFireAgain(answer))
+    while (res != -1 && shouldFireAgain(answer) && answer != WRONG)
     {
         res = shootTurn(connection, buf, mes, coding);
         answer = getAnswerFromStr(mes->message, coding);
@@ -94,7 +94,7 @@ int recievePhase(int connection, char *buf, Message *mes, CODINGS coding)
     MarineAnswer answer = HIT;
     int res = recieveTurn(connection, buf, mes, coding);
     answer = getAnswerFromStr(mes->message, coding);
-    while (res != -1 && shouldFireAgain(answer))
+    while (res != -1 && shouldFireAgain(answer) && answer != WRONG)
     {
         res = recieveTurn(connection, buf, mes, coding);
         answer = getAnswerFromStr(mes->message, coding);
@@ -156,5 +156,6 @@ int main(int argc, char **argv)
         if (recievePhase(sock, buf, &mes, coding) == -1)
             break;
     }
+    printf("Something on the other side went wrong\n");
     close(sock);
 }
