@@ -1,10 +1,19 @@
 make: server.out client.out
 
-server.out: server.c
-	gcc server.c -o server.out
+protocol.o: protocol.c
+	gcc -c protocol.c
 
-client.out: client.c
-	gcc client.c -o client.out
+server.out: server.o protocol.o
+	gcc server.o protocol.o -o server.out
+
+server.o: server.c
+	gcc -c server.c
+
+client.out: client.o protocol.o
+	gcc client.o protocol.o -o client.out
+
+client.o: client.c
+	gcc -c client.c
 
 clean:
 	rm -rf *.o *.out
