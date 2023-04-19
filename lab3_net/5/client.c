@@ -52,6 +52,7 @@ int scanAndSendAnswer(int connection, char *buf, Message *mes, CODINGS defCoding
     scanMessage(mes, defCoding);
     while(getAnswerFromStr(mes->message, defCoding) == WRONG){
         printf("Prohibited answer, try again: ");
+        fflush(stdin);
         scanMessage(mes, defCoding);
     }
     return sendMessage(connection, buf, mes);
