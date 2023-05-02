@@ -25,23 +25,15 @@ double time_step = R * C / 10;
 struct timeval tv1, tv2, dtv;
 struct timezone tz;
 
-int FindRows(int num_of_elements, int num_of_process) {
-    int num_rows;
-    num_rows = (int) sqrt(num_of_elements);
-    if ((num_of_elements % num_rows == 0) && (num_rows % num_of_process == 0))
-        return num_rows;
-    num_rows -= 1;
-    if ((num_of_elements % num_rows == 0) && (num_rows % num_of_process == 0))
-        return num_rows;
-}
-
 void makeGNUscript(char* scriptFilename, char* resultFilename, int elNum){
+    elNum = elNum * elNum;
     FILE *script = fopen(scriptFilename, "w");
     fprintf(script, "filedata = '%s'\n", resultFilename);
     fprintf(script, "n = system(sprintf('cat %%s | wc -l', filedata))\n");
-    fprintf(script, "set hidden3d\nset dgrid3d 50,50 qnorm 2\nset zrange [0:10000]\n");
-    fprintf(script, "do for [i=1:n-%d:%d] {\n", elNum, elNum);
-    fprintf(script, "splot filedata every ::(i-%d)::i w l ls 1 \npause 0.1}\n", elNum);
+    fprintf(script, "set hidden3d\nset dgrid3d 50,50 qnorm 2\nset zrange [0:%f]\n", time_interval / time_step);
+    fprintf(script, "do for [i=%d+1:n:%d] {\n", elNum, elNum);
+    fprintf(script, "set title 'time '.i/%d\n", elNum);
+    fprintf(script, "splot filedata every ::(i-%d)::i w l ls 1 \npause 0.1\n}\n", elNum);
     fclose(script);
 }
 
@@ -58,9 +50,10 @@ int main(int argc, char **argv) {
     double *p_n_matrix, *el_prev, *el_last;
     int intBuf[4];
     int i, j, row_in_proc, row_elems;
-    int myrank, total;
+    int myrank, total; //Параметры MPI
     int first, last;
     double time;
+    time_step = R * C / 10;
 
     FILE *res = fopen(resultsFile, "w");
     MPI_Status *status1;
@@ -68,28 +61,31 @@ int main(int argc, char **argv) {
     MPI_Init(&argc, &argv);
     MPI_Comm_size(MPI_COMM_WORLD, &total);
     MPI_Comm_rank(MPI_COMM_WORLD, &myrank);
-    if (!myrank) {
+    if (!myrank) { //Только основной процесс исполнит этот блок
         if (argc >= 3) {
-            time_interval = atoi(argv[2]);
             num_of_elements = atoi(argv[1]);
+            time_interval = atoi(argv[2]);
         }
         num_of_process = total;
         if ((num_of_elements % num_of_process != 0) || (num_of_elements < num_of_process)) {
             printf("number of processes is not multuple to elems\n");
             exit(0);
         }
-        num_of_rows = FindRows(num_of_elements, num_of_process);
-        row_elems = num_of_elements / num_of_rows;
+        num_of_rows = num_of_elements;
+        row_elems = num_of_elements;
         printf("num_r_el %d \n", row_elems);
         intBuf[0] = row_elems; //количество элементов в строке
         intBuf[1] = num_of_rows / num_of_process; //количество строк на процесс
         intBuf[2] = num_of_process; //количество процессов
         intBuf[3] = time_interval; //время работы
-        N_matrix = (double *) malloc(num_of_elements * sizeof(double)); //матрица i+1 момента
-        F_matrix = (double *) malloc(num_of_elements * sizeof(double));//матрица i момента
-        for (i = 0; i < num_of_elements; i++) {
-            F_matrix[i] = 0.0;
-            N_matrix[i] = 0.0;
+        N_matrix = (double *) calloc(num_of_elements * num_of_elements, sizeof(double)); //матрица i+1 момента
+        F_matrix = (double *) calloc(num_of_elements * num_of_elements, sizeof(double)); //матрица i момента
+        int max = time_interval / time_step;
+        for(int j = 0; j < num_of_elements; ++j){
+            F_matrix[j] = max;
+            F_matrix[j*row_elems] = max;
+            F_matrix[j*row_elems + row_elems - 1] = max;
+            F_matrix[(num_of_rows-1)*row_elems + j] = max;
         }
     }
 
@@ -97,17 +93,18 @@ int main(int argc, char **argv) {
     int n = intBuf[0];
     int m = intBuf[1];
     int kol = intBuf[2];
+    time_interval = intBuf[3];
     int in1, in2, in;
-    time_step = R * C / 10;
+    
     el_prev = (double *) malloc(n * sizeof(double)); //элементы предыдущей строки
     el_last = (double *) malloc(n * sizeof(double)); //элементы следующей строки
     f_matrix = (double *) malloc(n * m * sizeof(double)); //матрица текущего момента
     n_matrix = (double *) malloc(n * m * sizeof(double)); //матрица следующего момента
-    time_interval = intBuf[3];
+    
 
     gettimeofday(&tv1, &tz);
     MPI_Scatter((void *) F_matrix, n * m, MPI_DOUBLE, (void *) f_matrix, n * m, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-    for (time = 0; time < time_interval / time_step; time += 1) {
+    for (time = 0; time < time_interval / time_step; ++time) {
         status1 = (MPI_Status *) malloc(sizeof(MPI_Status));
         status2 = (MPI_Status *) malloc(sizeof(MPI_Status));
 
@@ -119,8 +116,8 @@ int main(int argc, char **argv) {
         if (myrank)MPI_Recv(el_prev, n, MPI_DOUBLE, in2, 1, MPI_COMM_WORLD, status1);
         if (myrank != kol - 1) MPI_Recv(el_last, n, MPI_DOUBLE, in1, 2, MPI_COMM_WORLD, status2);
 
-        for (i = 0; i < m; i++)
-            for (j = 0; j < n; j++) {
+        for (i = 0; i < m; ++i)
+            for (j = 0; j < n; ++j) {
                 if ((!myrank && (!i)) || ((myrank == kol - 1) && (i == m - 1)) || (!j) ||
                     (j == n - 1)) { //если на границе
                     n_matrix[i * n + j] = (time <= (time_interval / (10 * time_step))) ? Ia * R : 0.0;
@@ -145,8 +142,8 @@ int main(int argc, char **argv) {
         f_matrix = n_matrix;
         n_matrix = p;
         if (!myrank) { //Запись результатов для графика
-            for (i = 0; i < num_of_elements; i++)
-                fprintf(res, "%# -15g %# -15g %# -15g\n", (double) (i / row_elems), (double) (i % row_elems),
+            for (i = 0; i < row_elems * num_of_rows; i++)
+                fprintf(res, "%# -15g %# -15g %# -15g\n", (double) (i / num_of_rows), (double) (i % num_of_rows),
                         N_matrix[i]);
             fflush(res);
         }
