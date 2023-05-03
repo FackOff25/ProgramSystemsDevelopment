@@ -1,10 +1,10 @@
 make: mpi.out
 
 mpi.out:
-	mpicc main.c -o mpi.out -lm
+	mpic++ main.c -o mpi.out -lm
 
 start: mpi.out
-	mpiexec -n 10 ./mpi.out 50 1
+	mpiexec -n $(threads) ./mpi.out $(elements) 1
 
 plot: gnuScript.gnu result.plt
 	gnuplot gnuScript.gnu -p
