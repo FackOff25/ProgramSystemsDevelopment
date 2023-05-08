@@ -9,7 +9,7 @@
 
 #define DEF_ROW_PROC 4
 #define Ia 1.0
-#define U 0.0
+#define U 10.0
 #define R 1000.0
 #define C 1e-5
 
@@ -73,7 +73,7 @@ int main(int argc, char **argv)
     double time;
     double time_step = 0.001;
 
-    FILE *res = fopen(resultsFile, "w");
+    FILE *res = fopen((char*) resultsFile, "w");
     MPI_Status *status1;
     MPI_Status *status2;
     MPI_Init(&argc, &argv);
@@ -93,7 +93,6 @@ int main(int argc, char **argv)
             exit(0);
         }
         printf("num_r_el %d \n", num_of_elements);
-        num_of_elements += 2;
         num_of_rows = num_of_elements;
         row_elems = num_of_elements;
         intBuf[0] = row_elems;                                                          // количество элементов в строке
@@ -140,10 +139,31 @@ int main(int argc, char **argv)
         for (i = 0; i < m; ++i)
             for (j = 0; j < n; ++j)
             {
-                if ((!myrank && (!i)) || ((myrank == kol - 1) && (i == m - 1)) || (!j) ||
+                double U1, U2, U3, U4;
+                if(i == 0){
+                     U1 = (!myrank) ? U : el_prev[j];
+                }else{
+                    U1 =  f_matrix[getId(j, i - 1, n)];
+                }
+
+                U2 = (j == 0) ? U : f_matrix[getId(j - 1, i, n)];
+
+                if(i == m - 1){
+                     U3 = (myrank == kol - 1) ? U : el_last[j];
+                }else{
+                    U3 =  f_matrix[getId(j, i + 1, n)];
+                }
+                
+                U4 = (j == n - 1) ? U : f_matrix[getId(j + 1, i, n)];
+
+                n_matrix[getId(j, i, n)] = (U1 + U2 + U3 + U4 - 4 * f_matrix[getId(j, i, n)]) * time_step / (R * C) + f_matrix[getId(j, i, n)];
+                /*
+                if ((!myrank && (i == 0)) || ((myrank == kol - 1) && (i == m - 1)) || (j == 0) ||
                     (j == n - 1))
                 { // если на границе
-                    if ((!myrank && (!i)))
+                    n_matrix[getId(j, i, n)] = U;
+                    
+                    if ((!myrank && (i == 0)))
                         n_matrix[getId(j, i, n)] = Ia * R + f_matrix[getId(j, i + 1, n)];
                     else if ((myrank == kol - 1) && (i == m - 1))
                         n_matrix[getId(j, i, n)] = Ia * R + f_matrix[getId(j, i - 1, n)];
@@ -151,7 +171,8 @@ int main(int argc, char **argv)
                         n_matrix[getId(j, i, n)] = Ia * R + f_matrix[getId(j + 1, i, n)];
                     else
                         n_matrix[getId(j, i, n)] = Ia * R + f_matrix[getId(j - 1, i, n)];
-                    // if(!myrank && (!i) && j == 1) n_matrix[getId(j, i, n)] = U;
+                        
+                    // if(!myrank && (i == 0) && j == 1) n_matrix[getId(j, i, n)] = U;
                 }
                 else if (i == 0) // если на границе
                     n_matrix[getId(j, i, n)] =
@@ -161,7 +182,8 @@ int main(int argc, char **argv)
                         (f_matrix[getId(j - 1, i, n)] - 4 * f_matrix[getId(j, i, n)] + f_matrix[getId(j + 1, i, n)] + el_last[j] + f_matrix[getId(j, i - 1, n)]) * time_step / (R * C) + f_matrix[getId(j, i, n)];
                 else // в центре
                     n_matrix[getId(j, i, n)] =
-                        (f_matrix[getId(j - 1, i, n)] - 4 * f_matrix[getId(j, i, n)] + f_matrix[getId(j + 1, i, n)] + f_matrix[getId(j, i + 1, n)] + f_matrix[getId(j, i - 1, n)]) * time_step / (R * C) + f_matrix[j + n * i];
+                        (f_matrix[getId(j - 1, i, n)] - 4 * f_matrix[getId(j, i, n)] + f_matrix[getId(j + 1, i, n)] + f_matrix[getId(j, i + 1, n)] + f_matrix[getId(j, i - 1, n)]) * time_step / (R * C) + f_matrix[getId(j, i, n)];
+                */
             }
 
         MPI_Gather((void *)n_matrix, m * n, MPI_DOUBLE, (void *)N_matrix, m * n, MPI_DOUBLE, 0, MPI_COMM_WORLD);
@@ -171,8 +193,7 @@ int main(int argc, char **argv)
         if (!myrank)
         { // Запись результатов для графика
             for (i = 1; i < row_elems * num_of_rows; ++i)
-                if (getX(i, row_elems) != 0 && getX(i, row_elems) != row_elems - 1 && getY(i, row_elems) != 0 && getY(i, row_elems) != row_elems - 1)
-                    fprintf(res, "%# -15g %# -15g %# -15g\n", (double)(i / num_of_rows), (double)(i % num_of_rows), N_matrix[i]);
+                fprintf(res, "%# -15g %# -15g %# -15g\n", (double)(i / num_of_rows), (double)(i % num_of_rows), N_matrix[i]);
             fflush(res);
         }
     }
@@ -193,7 +214,7 @@ int main(int argc, char **argv)
 
     MPI_Finalize();
 
-    makeGNUscript(scriptFile, resultsFile, atoi(argv[1]));
+    makeGNUscript((char*) scriptFile,(char*) resultsFile, atoi(argv[1]));
     // startAnimation(scriptFile);
 
     exit(0);
