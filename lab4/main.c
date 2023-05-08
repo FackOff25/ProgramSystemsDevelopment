@@ -72,8 +72,9 @@ int main(int argc, char **argv)
     int first, last;
     double time;
     double time_step = 0.001;
+    int write_to_file = 1;
+    FILE *res = NULL;
 
-    FILE *res = fopen((char*) resultsFile, "w");
     MPI_Status *status1;
     MPI_Status *status2;
     MPI_Init(&argc, &argv);
@@ -85,6 +86,13 @@ int main(int argc, char **argv)
         {
             num_of_elements = atoi(argv[1]);
             time_interval = atoi(argv[2]);
+        }
+        if (argc >= 4)
+        {
+            int write = atoi(argv[3]);
+            if (write != 0) {
+                res = fopen((char*) resultsFile, "w");
+            }
         }
         num_of_process = total;
         if ((num_of_elements % num_of_process != 0) || (num_of_elements < num_of_process))
@@ -142,6 +150,7 @@ int main(int argc, char **argv)
                 
                 double U1, U2, U3, U4;
                 double Ui = f_matrix[getId(j, i, n)];
+                //double amperU = Ia * R + f_matrix[getId(j, i, n)];
 
                 if(i == 0){
                     U1 = (!myrank) ? U : el_prev[j];
@@ -159,9 +168,11 @@ int main(int argc, char **argv)
                 
                 U4 = (j == n - 1) ? U : f_matrix[getId(j + 1, i, n)];
 
+                /*
+                //Один источник тока на угол
                 if ((!myrank && (i == 0)) && (j == 0))
-                        U1 = Ia * R + f_matrix[getId(j, i, n)];
-
+                        U1 = amperU;
+                */
                 n_matrix[getId(j, i, n)] = (U1 + U2 + U3 + U4 - 4 * Ui) * time_step / (R * C) + Ui;
             }
 
@@ -169,7 +180,7 @@ int main(int argc, char **argv)
         p = f_matrix;
         f_matrix = n_matrix;
         n_matrix = p;
-        if (!myrank)
+        if (res != NULL && !myrank)
         { // Запись результатов для графика
             for (i = 0; i < row_elems * num_of_rows; ++i)
                 fprintf(res, "%# -15g %# -15g %# -15g\n", (double)(i / num_of_rows), (double)(i % num_of_rows), N_matrix[i]);
@@ -193,7 +204,7 @@ int main(int argc, char **argv)
 
     MPI_Finalize();
 
-    makeGNUscript((char*) scriptFile,(char*) resultsFile, atoi(argv[1]));
+    if (res != NULL) makeGNUscript((char*) scriptFile,(char*) resultsFile, atoi(argv[1]));
     // startAnimation(scriptFile);
 
     exit(0);

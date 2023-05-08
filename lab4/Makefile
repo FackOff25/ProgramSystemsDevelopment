@@ -4,7 +4,7 @@ mpi.out:
 	mpic++ main.c -o mpi.out -lm
 
 start: mpi.out
-	mpiexec -n $(threads) ./mpi.out $(elements) 1
+	mpiexec -n $(threads) ./mpi.out $(elements) 1 $(writeResults)
 
 plot: gnuScript.gnu result.plt
 	gnuplot gnuScript.gnu -p
