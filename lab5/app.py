@@ -25,15 +25,15 @@ if __name__ == '__main__':
     for element in elements_list:
         sql = provider.get('get_node.sql', id=element[1])
         db_point = select_dict(app.config['db_config'], sql)[0]
-        point1 = Point(db_point['n1'], db_point['n2'], db_point['n3'])
+        point1 = Point(db_point['id'], db_point['x'], db_point['y'])
 
         sql = provider.get('get_node.sql', id=element[2])
         db_point = select_dict(app.config['db_config'], sql)[0]
-        point2 = Point(db_point['n1'], db_point['n2'], db_point['n3'])
+        point2 = Point(db_point['id'], db_point['x'], db_point['y'])
 
         sql = provider.get('get_node.sql', id=element[3])
         db_point = select_dict(app.config['db_config'], sql)[0]
-        point3 = Point(db_point['n1'], db_point['n2'], db_point['n3'])
+        point3 = Point(db_point['id'], db_point['x'], db_point['y'])
 
         cur_element = Element(element[0], point1, point2, point3)
         elements_dict[element[0]] = cur_element.get_perimeter()
